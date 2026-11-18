@@ -1485,7 +1485,7 @@ echo "After the stop: CPU max/hw kHz: $(cpu_caps); skin: $(skin_temp)"
 # container setup, and its APEXes on /data must still read back cleanly.
 # (Field 5 of mountinfo is the mount point; matching anywhere in the line
 # also caught binds whose *source* was under /apex.)
-awk '$5 ~ /^\/apex(\/|$)/ {print $5, $10}' /proc/1/mountinfo | sort > "$STAGE/host_apex.before"
+awk '$5 ~ /^\/apex(\/|$)/ {print $5, $10}' /proc/1/mountinfo | sed -e 's/,errors=remount-ro//g' -e 's/errors=remount-ro,//g' | sort > "$STAGE/host_apex.before"
 /system/bin/sh "$STAGE/check_host_apex.sh" before-setup
 # The device states, display layouts and touch-port associations the guest's
 # framework finds on the host, copied for the logs (pull-run-logs.sh takes
@@ -1545,7 +1545,7 @@ if [ $PREP_RET -ne 0 ]; then
     /system/bin/sh "$STAGE/return_to_oneui.sh"
     exit 1
 fi
-awk '$5 ~ /^\/apex(\/|$)/ {print $5, $10}' /proc/1/mountinfo | sort > "$STAGE/host_apex.after"
+awk '$5 ~ /^\/apex(\/|$)/ {print $5, $10}' /proc/1/mountinfo | sed -e 's/,errors=remount-ro//g' -e 's/errors=remount-ro,//g' | sort > "$STAGE/host_apex.after"
 if ! cmp -s "$STAGE/host_apex.before" "$STAGE/host_apex.after"; then
     echo "ERROR: the container setup changed One UI's /apex mounts:"
     diff "$STAGE/host_apex.before" "$STAGE/host_apex.after" | head -20
