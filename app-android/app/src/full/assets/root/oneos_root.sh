@@ -594,7 +594,6 @@ profile_set() {
         "a15-5g oxygenos16-cph2745") echo oxygen16 ;;
         # 0.5.22: the Galaxy M51 (One UI 9).
         "m51 coloros17-findx9u-in-1105") echo x9u-in-1105-sultra ;;
-        "m51 pixel9proxl-komodo") echo pixel9-sultra ;;
         "m51 infinityx41-findx9u") echo infinityx ;;
         "m51 lineage24-infiniti") echo lineage ;;
         "m51 hyperos-lhasa") echo hyper-f8u ;;

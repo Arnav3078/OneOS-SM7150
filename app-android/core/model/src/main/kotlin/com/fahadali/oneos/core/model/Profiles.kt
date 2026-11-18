@@ -1323,7 +1323,6 @@ object Profiles {
         form = FormFactor.BAR,
         choices = listOf(
             X9U_IN_1105_CHOICE,
-            PIXEL9_CHOICE,
             INFINITYX_CHOICE,
             LINEAGE_CHOICE,
             HYPEROS_CHOICE,
