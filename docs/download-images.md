@@ -66,6 +66,7 @@ Downloads: each system's own link below (the SourceForge mirror, resumable); all
   - Galaxy S23 (au) (SCG19, SM8550), not tested yet
   - Galaxy M35 5G (SM-M356, s5e8835), not tested yet
   - Galaxy S24+ (SM-S926, SM8650), not tested yet
+  - Galaxy M51 (SM-M515, SM7150), not tested yet
 
 ## Pixel 11 Fold, yogi build
 
@@ -174,6 +175,7 @@ Downloads: each system's own link below (the SourceForge mirror, resumable); all
   - Galaxy S23 (au) (SCG19, SM8550), not tested yet
   - Galaxy M35 5G (SM-M356, s5e8835), not tested yet
   - Galaxy S24+ (SM-S926, SM8650), not tested yet
+  - Galaxy M51 (SM-M515, SM7150), not tested yet
 
 ## HyperOS, Xiaomi 18 Fold build
 
@@ -227,6 +229,7 @@ Downloads: each system's own link below (the SourceForge mirror, resumable); all
   - Galaxy S23 (au) (SCG19, SM8550), not tested yet
   - Galaxy M35 5G (SM-M356, s5e8835), not tested yet
   - Galaxy S24+ (SM-S926, SM8650), not tested yet
+  - Galaxy M51 (SM-M515, SM7150), not tested yet
 
 ## Nothing OS 5.0, Metroid build
 
@@ -283,6 +286,7 @@ Downloads: each system's own link below (the SourceForge mirror, resumable); all
   - Galaxy A34 5G (SM-A346, MT6877), not tested yet
   - Galaxy A55 5G (SM-A556, s5e8845), not tested yet
   - Galaxy M35 5G (SM-M356, s5e8835), not tested yet
+  - Galaxy M51 (SM-M515, SM7150), not tested yet
 
 ## OxygenOS 16, OnePlus CPH2745 build
 
@@ -326,6 +330,7 @@ Downloads: each system's own link below (the SourceForge mirror, resumable); all
   - Galaxy S23 (au) (SCG19, SM8550), not tested yet
   - Galaxy M35 5G (SM-M356, s5e8835), not tested yet
   - Galaxy A15 5G (SM-A156, MT6835), not tested yet
+  - Galaxy M51 (SM-M515, SM7150), not tested yet
 
 ## OriginOS 7, vivo PD2609MA build
 
@@ -410,3 +415,4 @@ Downloads: each system's own link below (the SourceForge mirror, resumable); all
   - Galaxy S23 (au) (SCG19, SM8550), not tested yet
   - Galaxy M35 5G (SM-M356, s5e8835), not tested yet
   - Galaxy S24+ (SM-S926, SM8650), not tested yet
+  - Galaxy M51 (SM-M515, SM7150), not tested yet

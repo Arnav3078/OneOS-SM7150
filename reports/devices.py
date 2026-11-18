@@ -57,11 +57,11 @@ CHIP = {
     "s5e9965": "Exynos 2600", "s5e9955": "Exynos 2500", "s5e9945": "Exynos 2400", "s5e8855": "Exynos 1580",
     "s5e8865": "Exynos 1680",
     "s5e8835": "Exynos 1380", "s5e8535": "Exynos 1330", "MT6789": "Helio G99",
-    "s5e8845": "Exynos 1480", "MT6835": "Dimensity 6300", "MT6877": "Dimensity 1080", "s5e8825": "Exynos 1280", "s5e9925": "Exynos 2200", "MT6769": "Helio G85", "MT6768": "Helio G85", "SM8450": "Snapdragon 8 Gen 1", "SM7450": "Snapdragon 7 Gen 1",
+    "s5e8845": "Exynos 1480", "MT6835": "Dimensity 6300", "MT6877": "Dimensity 1080", "s5e8825": "Exynos 1280", "s5e9925": "Exynos 2200", "MT6769": "Helio G85", "MT6768": "Helio G85", "SM8450": "Snapdragon 8 Gen 1", "SM7450": "Snapdragon 7 Gen 1", "SM7150": "Snapdragon 730G",
 }
 # Per phone: a chip that shares another's board code, and the 4G/5G a label leaves out.
 CHIP_OF = {"s-fe-9945": "Exynos 2400e"}
-EXTRA = {"a17": "4G", "a07": "4G"}
+EXTRA = {"a17": "4G", "a07": "4G", "m51": "4G"}
 ITEMS = [("screen", "Screen"), ("wifi", "Wi-Fi"), ("data", "Mobile data"), ("calls", "Calls"), ("sms", "SMS"),
          ("bluetooth", "Bluetooth"), ("sound", "Sound"), ("camera", "Camera"), ("google", "Google"),
          ("location", "Location"), ("back", "Back to One UI"), ("heat", "Heat"), ("fold", "Both screens")]

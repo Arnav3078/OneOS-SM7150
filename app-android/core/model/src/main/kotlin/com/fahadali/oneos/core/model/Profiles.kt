@@ -46,7 +46,7 @@ data class PhoneProfile(
 ) {
     fun matches(model: String, device: String, soc: String): Boolean =
         model.trim().uppercase(Locale.ROOT).startsWith(modelPrefix) &&
-            device.trim().equals(codename, ignoreCase = true) &&
+            (device.trim().equals(codename, ignoreCase = true) || (codename == "m51" && device.trim().startsWith("m51", ignoreCase = true))) &&
             soc.trim().equals(socModel, ignoreCase = true)
 
     fun matches(f: DeviceFacts): Boolean = matches(f.model, f.device, f.soc.model)
@@ -145,6 +145,7 @@ object Profiles {
     const val ID_S_8550_JP = "s-8550-jp"
     const val ID_M35 = "m35"
     const val ID_A15_5G = "a15-5g"
+    const val ID_M51 = "m51"
 
     /** The SM8750 and SM8650 phones' note ([PhoneProfile.notes]) and its [Finding.reason]. */
     const val ID_NOTE_OLDER_VENDOR = "profile-vendor-older"
@@ -1299,6 +1300,30 @@ object Profiles {
      */
     val S_PLUS_8650 = S_8650.copy(id = ID_S_PLUS_8650, label = "Galaxy S24+", modelPrefix = "SM-S926", codename = "e2q")
 
+    /**
+     * Galaxy M51, from 0.5.22: ported with One UI 9 / Android 17 (SM-M515F, m51, Snapdragon 730G
+     * SM7150, Adreno 618, one 1080 x 2400 Super AMOLED Plus panel, KernelSU/root, VoLTE and Samsung Camera).
+     * Supports full guest lineup: ColorOS 17, Project Infinity-X 4.1, LineageOS 24, HyperOS,
+     * OxygenOS 16, and Nothing OS (Asteroids).
+     */
+    val M51 = PhoneProfile(
+        id = ID_M51,
+        label = "Galaxy M51",
+        modelPrefix = "SM-M515",
+        codename = "m51",
+        socModel = "SM7150",
+        form = FormFactor.BAR,
+        choices = listOf(
+            X9U_IN_1105_CHOICE,
+            INFINITYX_CHOICE,
+            LINEAGE_CHOICE,
+            HYPEROS_CHOICE,
+            OXYGEN16_CHOICE,
+            NOTHING_A_CHOICE,
+        ),
+        notes = listOf(OLDER_VENDOR),
+    )
+
     val BUILT_IN: List<PhoneProfile> = listOf(
         F8U, S_ULTRA_8850, S_ULTRA_8750, S_8750, FOLD7, S_PLUS_8750, FOLD8,
         S_8850, S_8850_JP, S_ULTRA_8650, S_8650, S_8550, S_PLUS_8550, S_PLUS_8850,
@@ -1306,6 +1331,7 @@ object Profiles {
         S_ULTRA_8550, FLIP6, S_9945, S_EDGE_8750, S_FE_9945, A26, A17, A16, S_9965, A16_4G, A16_S166, A35, A54, A27, A17_5G, FLIP7_FE,
         A06, A07_5G, A15, A24, A25, A33, A34, A53, E55, S_FE_9925, S_FE_8450, S_PLUS_9925, S_ULTRA_9925, S_ULTRA_8450,
         A55, S25_FE, S_8450, M55S, S_ULTRA_8450_JP, S_PLUS_9945, S_ULTRA_8550_JP, S_9925, A16_MTK, S_8550_JP, M35, A15_5G, S_PLUS_8650,
+        M51,
     )
 
     /** `ro.build.version.oneui` values seen on profiled phones (all One UI 9.0). */

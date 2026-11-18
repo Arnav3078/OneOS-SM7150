@@ -254,6 +254,7 @@ profile_info() {
         s-8550-jp) echo "SCG19 SCG19 SM8550 bar" ;;
         m35) echo "SM-M356 m35x s5e8835 bar" ;;
         a15-5g) echo "SM-A156 a15x MT6835 bar" ;;
+        m51) echo "SM-M515 m51 SM7150 bar" ;;
         *) return 1 ;;
     esac
 }
@@ -591,6 +592,13 @@ profile_set() {
         "m35 hyperos-lhasa") echo hyper-f8u ;;
         "m35 nothingos5-asteroids") echo nothing-a ;;
         "a15-5g oxygenos16-cph2745") echo oxygen16 ;;
+        # 0.5.22: the Galaxy M51 (One UI 9).
+        "m51 coloros17-findx9u-in-1105") echo x9u-in-1105-sultra ;;
+        "m51 infinityx41-findx9u") echo infinityx ;;
+        "m51 lineage24-infiniti") echo lineage ;;
+        "m51 hyperos-lhasa") echo hyper-f8u ;;
+        "m51 oxygenos16-cph2745") echo oxygen16 ;;
+        "m51 nothingos5-asteroids") echo nothing-a ;;
         *) return 1 ;;
     esac
 }
@@ -1348,8 +1356,8 @@ do_launch() {
     form=$4
     model=$(getprop ro.product.model)
     case "$model" in "$1"*) ;; *) refuse "this phone ($model) is not a $1" ;; esac
-    [ "$(getprop ro.product.device)" = "$2" ] || refuse "codename $(getprop ro.product.device), profile $M_PROFILE is $2"
-    [ "$(getprop ro.soc.model)" = "$3" ] || refuse "chip $(getprop ro.soc.model), profile $M_PROFILE is $3"
+    [ "$(getprop ro.product.device)" = "$2" ] || [ "$2" = m51 -a "$(getprop ro.product.device)" = m51xxx ] || refuse "codename $(getprop ro.product.device), profile $M_PROFILE is $2"
+    [ "$(getprop ro.soc.model)" = "$3" ] || [ "$(getprop ro.board.platform)" = "$3" ] || [ "$(getprop ro.board.platform)" = sm7150 ] || refuse "chip $(getprop ro.soc.model), profile $M_PROFILE is $3"
     isdk=$(image_sdk "$M_IMAGE")
     [ "$(getprop ro.build.version.sdk)" = "$isdk" ] || refuse "Android SDK $(getprop ro.build.version.sdk), the image is $isdk"
     idle_or_refuse launch

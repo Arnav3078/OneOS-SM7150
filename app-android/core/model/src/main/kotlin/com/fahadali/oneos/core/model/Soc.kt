@@ -49,7 +49,7 @@ data class SocInfo(
  */
 object SocRules {
     private val QUALCOMM_PLATFORMS = setOf(
-        "msmnile", "kona", "lahaina", "taro", "kalama", "pineapple", "sun", "canoe",
+        "msmnile", "kona", "lahaina", "taro", "kalama", "pineapple", "sun", "canoe", "sm7150",
     )
     private val QUALCOMM_PREFIXES = listOf("msm", "sdm", "sm8", "sm7", "sm6", "qcom")
     private val EXYNOS_PREFIXES = listOf("s5e", "exynos", "erd", "universal")
@@ -62,9 +62,11 @@ object SocRules {
         "pineapple" to "SM8650",
         "sun" to "SM8750",
         "canoe" to "SM8850",
+        "sm7150" to "SM7150",
     )
 
     private val MARKETING = mapOf(
+        "SM7150" to "Snapdragon 730G",
         "SM8450" to "Snapdragon 8 Gen 1",
         "SM8475" to "Snapdragon 8+ Gen 1",
         "SM8550" to "Snapdragon 8 Gen 2",

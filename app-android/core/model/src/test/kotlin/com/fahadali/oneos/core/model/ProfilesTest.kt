@@ -298,7 +298,7 @@ class ProfilesTest {
                 Profiles.S_FE_9925, Profiles.S_FE_8450, Profiles.S_PLUS_9925, Profiles.S_ULTRA_9925, Profiles.S_ULTRA_8450,
                 Profiles.A55, Profiles.S25_FE, Profiles.S_8450, Profiles.M55S, Profiles.S_ULTRA_8450_JP, Profiles.S_PLUS_9945,
                 Profiles.S_ULTRA_8550_JP, Profiles.S_9925, Profiles.A16_MTK, Profiles.S_8550_JP,
-                Profiles.M35, Profiles.A15_5G, Profiles.S_PLUS_8650,
+                Profiles.M35, Profiles.A15_5G, Profiles.S_PLUS_8650, Profiles.M51,
             ),
             Profiles.BUILT_IN,
         )
@@ -438,6 +438,9 @@ class ProfilesTest {
         assertNull(Profiles.resolve("SM-A156M", "a15", "MT6835").profile)
         assertNull(Profiles.resolve("SM-A156M", "a15x", "MT6789").profile)
         assertEquals(Profiles.A15, Profiles.resolve("SM-A155F", "a15", "MT6789").profile)
+        // 0.5.22: the Galaxy M51 (SM-M515F, m51/m51xxx, SM7150)
+        assertEquals(Profiles.M51, Profiles.resolve("SM-M515F", "m51", "SM7150").profile)
+        assertEquals(Profiles.M51, Profiles.resolve("SM-M515F", "m51xxx", "SM7150").profile)
 
         // Ids unique; every choice names an image and a set built from that image,
         // each image once per profile; the fold grid with a ColorOS image on the fold

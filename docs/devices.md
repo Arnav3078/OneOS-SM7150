@@ -265,6 +265,19 @@ SM-M356, 5G, Exynos 1380
 | HyperOS | 🔲 not tested yet |
 | OxygenOS 16 | 🔲 not tested yet |
 
+## Galaxy M51
+
+SM-M515, 4G, Snapdragon 730G
+
+| System | Status |
+|---|---|
+| ColorOS 17 (Find X9 Ultra) | 🔲 not tested yet |
+| Infinity-X 4.1 | 🔲 not tested yet |
+| LineageOS 24 | 🔲 not tested yet |
+| HyperOS | 🔲 not tested yet |
+| OxygenOS 16 | 🔲 not tested yet |
+| Nothing OS 5 (A series) | 🔲 not tested yet |
+
 ## Galaxy M53
 
 SM-M536

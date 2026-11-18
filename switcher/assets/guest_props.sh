@@ -1316,6 +1316,7 @@ add)
             SM8750) cpu="8 Elite" ;;
             SM8650) cpu="8 Gen 3" ;;
             SM8550) cpu="8 Gen 2" ;;
+            SM7150) cpu="730G" ;;
             s5e9965) cpu="Exynos 2600" ;;
             s5e9955) cpu="Exynos 2500" ;;
             *) cpu="" ;;
