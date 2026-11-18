@@ -7,10 +7,20 @@ on:
     branches: [ "main" ]
   workflow_dispatch:
 
+permissions:
+  contents: read
+  packages: read
+
 jobs:
   build:
     name: Build & Test OneOS
     runs-on: ubuntu-latest
+
+    env:
+      GH_PACKAGES_USER: ${{ github.actor }}
+      GH_PACKAGES_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GITHUB_ACTOR: ${{ github.actor }}
+      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
     steps:
       - name: Checkout repository
