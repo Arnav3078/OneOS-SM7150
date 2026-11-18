@@ -896,8 +896,8 @@ add)
     # screen on the GPU every frame at 120 Hz (1,325 GPU-missed frames, GPU pinned at 1010 MHz).
     # Without it the panel's own rounded corners are all there is to see. ONEOS_GUEST_SCREEN_DECOR=1
     # keeps it.
-    case "$(getprop ro.product.model)" in
-        SM-A*|SM-M*)
+    case "$(getprop ro.product.model):$(getprop ro.product.vendor.model):$(getprop ro.boot.product.model):$(getprop ro.hardware.chipname)" in
+        SM-A*|SM-M*|*:SM-M*|*:SM-A*|*SM7150*)
             if [ "${ONEOS_GUEST_SCREEN_DECOR:-0}" != 1 ]; then
                 sed -i '/^debug\.disable_screen_decorations=/d' "$NEW"
                 echo "debug.disable_screen_decorations=true" >> "$NEW"

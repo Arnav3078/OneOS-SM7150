@@ -93,8 +93,13 @@ object CustomRomRule {
     fun samsungBootloader(bootloader: String): Boolean = SAMSUNG_BOOTLOADER.matches(bootloader.trim().uppercase())
 
     fun check(s: Signals): Finding? {
-        val oneUi = s.oneUiRaw.isNotBlank()
         val bl = s.bootloader.trim().uppercase()
+        val isM51 = s.vendorModel.startsWith("SM-M515", ignoreCase = true) ||
+            s.model.startsWith("SM-M515", ignoreCase = true) ||
+            bl.startsWith("M515")
+        if (isM51) return null
+
+        val oneUi = s.oneUiRaw.isNotBlank()
         val blSamsung = samsungBootloader(bl)
         val modelCode = code(s.model)
         val vendorCode = code(s.vendorModel)

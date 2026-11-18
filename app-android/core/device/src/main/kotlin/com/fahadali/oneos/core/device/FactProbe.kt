@@ -41,7 +41,24 @@ class FactProbe(
     private val app = context.applicationContext
 
     fun collect(root: RootSignals): DeviceFacts {
-        val model = props.get("ro.product.model").ifEmpty { Build.MODEL.orEmpty() }
+        val vendorModel = props.first("ro.product.vendor.model", "ro.product.odm.model", "ro.boot.product.model", "ro.boot.em.model")
+        val vendorDevice = props.first("ro.product.vendor.device", "ro.product.odm.device", "ro.unica.device")
+        val chipname = props.get("ro.hardware.chipname")
+        val socModel = props.get("ro.soc.model").ifEmpty { Build.SOC_MODEL.orEmpty() }
+        val platform = props.get("ro.board.platform")
+        val bootloader = Build.BOOTLOADER.orEmpty().takeIf { it.isNotEmpty() && it != Build.UNKNOWN } ?: props.get("ro.bootloader")
+        val isM51 = vendorModel.startsWith("SM-M515", ignoreCase = true) ||
+            vendorDevice.equals("m51", ignoreCase = true) ||
+            bootloader.startsWith("M515", ignoreCase = true) ||
+            ((chipname.equals("SM7150", ignoreCase = true) || socModel.equals("SM7150", ignoreCase = true)) &&
+                (platform.equals("sm6150", ignoreCase = true) || platform.equals("sm7150", ignoreCase = true)))
+
+        val rawModel = props.get("ro.product.model").ifEmpty { Build.MODEL.orEmpty() }
+        val model = if (isM51 && !rawModel.startsWith("SM-M515", ignoreCase = true)) {
+            vendorModel.ifEmpty { "SM-M515F" }
+        } else {
+            rawModel
+        }
         val (panels, complete) = panels()
         val form = FormFactorRules.resolve(
             FormSignals(
@@ -54,17 +71,23 @@ class FactProbe(
         )
         val socProps = SocProps(
             manufacturer = props.get("ro.soc.manufacturer").ifEmpty { Build.SOC_MANUFACTURER.orEmpty() },
-            model = props.get("ro.soc.model").ifEmpty { Build.SOC_MODEL.orEmpty() },
-            platform = props.get("ro.board.platform"),
+            model = socModel,
+            platform = platform,
             hardware = props.get("ro.hardware").ifEmpty { Build.HARDWARE.orEmpty() },
-            chipname = props.get("ro.hardware.chipname"),
+            chipname = chipname,
             egl = props.get("ro.hardware.egl"),
         )
+        val rawDevice = props.first("ro.product.device", "ro.product.vendor.device").ifEmpty { Build.DEVICE.orEmpty() }
+        val device = if (isM51 && !rawDevice.startsWith("m51", ignoreCase = true)) {
+            "m51"
+        } else {
+            rawDevice
+        }
         return DeviceFacts(
             brand = props.get("ro.product.brand").ifEmpty { Build.BRAND.orEmpty() },
             manufacturer = props.get("ro.product.manufacturer").ifEmpty { Build.MANUFACTURER.orEmpty() },
             model = model,
-            device = props.first("ro.product.device", "ro.product.vendor.device").ifEmpty { Build.DEVICE.orEmpty() },
+            device = device,
             soc = SocRules.resolve(socProps),
             socProps = socProps,
             oneUiRaw = props.get("ro.build.version.oneui"),
@@ -85,8 +108,8 @@ class FactProbe(
             screenLockSet = screenLockSet(app),
             kernel = System.getProperty("os.version").orEmpty(),
             cpu = cpu(),
-            bootloader = Build.BOOTLOADER.orEmpty().takeIf { it.isNotEmpty() && it != Build.UNKNOWN } ?: props.get("ro.bootloader"),
-            vendorModel = props.get("ro.product.vendor.model"),
+            bootloader = bootloader,
+            vendorModel = if (isM51 && vendorModel.isEmpty()) "SM-M515F" else vendorModel,
         )
     }
 

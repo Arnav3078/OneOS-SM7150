@@ -96,7 +96,10 @@ internal object EditionHome {
     fun started(a: MainActivity) {
         UsageCheckIn.maybeSend(
             a,
-            profile = { Profiles.resolve(Build.MODEL, Build.DEVICE, Build.SOC_MODEL).profile?.id },
+            profile = {
+                val f = StageCheck.state.result?.facts
+                (if (f != null) Profiles.resolve(f).profile else Profiles.resolve(Build.MODEL, Build.DEVICE, Build.SOC_MODEL).profile)?.id
+            },
             systems = { listOf(SessionPrefs.homeSnapshot(a)?.imageId, SessionPrefs.lastLaunch(a)?.imageId?.takeIf { it.isNotEmpty() }) },
         )
     }

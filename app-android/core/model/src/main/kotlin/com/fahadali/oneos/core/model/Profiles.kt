@@ -44,10 +44,18 @@ data class PhoneProfile(
     /** Extra switch-time warnings for this phone (no tick needed). */
     val notes: List<Finding> = emptyList(),
 ) {
-    fun matches(model: String, device: String, soc: String): Boolean =
-        model.trim().uppercase(Locale.ROOT).startsWith(modelPrefix) &&
-            (device.trim().equals(codename, ignoreCase = true) || (codename == "m51" && device.trim().startsWith("m51", ignoreCase = true))) &&
-            soc.trim().equals(socModel, ignoreCase = true)
+    fun matches(model: String, device: String, soc: String): Boolean {
+        val m = model.trim().uppercase(Locale.ROOT)
+        val d = device.trim().lowercase(Locale.ROOT)
+        val s = soc.trim().uppercase(Locale.ROOT)
+        val socMatches = s == socModel.uppercase(Locale.ROOT) ||
+            (socModel == "SM7150" && (s == "SM6150" || s == "SNAPDRAGON 730G"))
+        val modelMatches = m.startsWith(modelPrefix) ||
+            (codename == "m51" && (m.contains("M515") || (d == "dm1q" && socMatches)))
+        val deviceMatches = d.equals(codename, ignoreCase = true) ||
+            (codename == "m51" && (d.startsWith("m51") || d == "dm1q"))
+        return modelMatches && deviceMatches && socMatches
+    }
 
     fun matches(f: DeviceFacts): Boolean = matches(f.model, f.device, f.soc.model)
 
@@ -1342,8 +1350,17 @@ object Profiles {
 
     fun byId(id: String, profiles: List<PhoneProfile> = BUILT_IN): PhoneProfile? = profiles.firstOrNull { it.id == id }
 
-    fun resolve(f: DeviceFacts, profiles: List<PhoneProfile> = BUILT_IN): ProfileResolution =
-        resolve(f.model, f.device, f.soc.model, profiles)
+    fun resolve(f: DeviceFacts, profiles: List<PhoneProfile> = BUILT_IN): ProfileResolution {
+        val direct = resolve(f.model, f.device, f.soc.model, profiles)
+        if (direct.profile != null) return direct
+        val vm = f.vendorModel.trim()
+        if (vm.isNotEmpty()) {
+            val vd = if (vm.contains("M515", ignoreCase = true)) "m51" else f.device
+            val fromVendor = resolve(vm, vd, f.soc.model, profiles)
+            if (fromVendor.profile != null) return fromVendor
+        }
+        return direct
+    }
 
     fun resolve(model: String, device: String, soc: String, profiles: List<PhoneProfile> = BUILT_IN): ProfileResolution {
         val hits = profiles.filter { it.matches(model, device, soc) }

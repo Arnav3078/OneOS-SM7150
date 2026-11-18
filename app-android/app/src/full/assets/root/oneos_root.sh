@@ -1354,10 +1354,14 @@ do_launch() {
     [ "$gms" = 0 ] || in_list "$M_IMAGE" "$IMAGES_GMS" || refuse "$M_IMAGE has no Google services a session may hide"
     set -- $pinfo
     form=$4
-    model=$(getprop ro.product.model)
-    case "$model" in "$1"*) ;; *) refuse "this phone ($model) is not a $1" ;; esac
-    [ "$(getprop ro.product.device)" = "$2" ] || [ "$2" = m51 -a "$(getprop ro.product.device)" = m51xxx ] || refuse "codename $(getprop ro.product.device), profile $M_PROFILE is $2"
-    [ "$(getprop ro.soc.model)" = "$3" ] || [ "$(getprop ro.board.platform)" = "$3" ] || [ "$(getprop ro.board.platform)" = sm7150 ] || refuse "chip $(getprop ro.soc.model), profile $M_PROFILE is $3"
+    model=$(getprop ro.product.vendor.model)
+    [ -n "$model" ] || model=$(getprop ro.boot.product.model)
+    [ -n "$model" ] || model=$(getprop ro.product.model)
+    case "$model" in "$1"*) ;; *) [ "$1" = "SM-M515" -a "$(getprop ro.hardware.chipname)" = "SM7150" ] || refuse "this phone ($model) is not a $1" ;; esac
+    dev=$(getprop ro.product.vendor.device)
+    [ -n "$dev" ] || dev=$(getprop ro.product.device)
+    [ "$dev" = "$2" ] || [ "$2" = m51 -a "$dev" = m51xxx ] || [ "$2" = m51 -a "$(getprop ro.hardware.chipname)" = SM7150 ] || [ "$2" = m51 -a "$dev" = dm1q ] || refuse "codename $dev, profile $M_PROFILE is $2"
+    [ "$(getprop ro.soc.model)" = "$3" ] || [ "$(getprop ro.board.platform)" = "$3" ] || [ "$(getprop ro.board.platform)" = sm7150 ] || [ "$(getprop ro.board.platform)" = sm6150 ] || [ "$(getprop ro.hardware.chipname)" = "$3" ] || refuse "chip $(getprop ro.soc.model), profile $M_PROFILE is $3"
     isdk=$(image_sdk "$M_IMAGE")
     [ "$(getprop ro.build.version.sdk)" = "$isdk" ] || refuse "Android SDK $(getprop ro.build.version.sdk), the image is $isdk"
     idle_or_refuse launch

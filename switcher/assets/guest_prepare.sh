@@ -776,8 +776,8 @@ fi
 # 0.5.14: a Galaxy A or M phone takes the A series' own camera (samcam_a.tar, built from the Galaxy
 # A36's One UI 9) where the set has one: the flagship's camera on an A phone's sensors needed the crop,
 # mode and resolution fixes (fix_a_series_*.py) and still failed in 7 of 14 A36 ColorOS reports.
-case "$(getprop ro.product.model)" in
-    SM-A*|SM-M*)
+case "$(getprop ro.product.model):$(getprop ro.product.vendor.model):$(getprop ro.boot.product.model):$(getprop ro.hardware.chipname)" in
+    SM-A*|SM-M*|*:SM-M*|*:SM-A*|*SM7150*)
         if [ -f "$STAGE/samcam_a.tar" ] && [ ! -L "$STAGE/samcam_a.tar" ]; then SAMCAM_TAR="$STAGE/samcam_a.tar"; fi ;;
 esac
 SAMCAM_IMAGE=0

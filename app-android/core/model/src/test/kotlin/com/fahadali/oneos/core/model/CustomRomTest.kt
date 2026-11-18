@@ -141,6 +141,12 @@ class CustomRomTest {
     }
 
     @Test
+    fun m51CustomRomPasses() {
+        assertNull(check("SM-S911B", "M515FXXS6DXE3", "SM-M515F", "90000"))
+        assertNull(check("SM-M515F", "M515FXXS6DXE3", "SM-M515F", "90000"))
+    }
+
+    @Test
     fun factsCarryTheRule() {
         assertEquals("SM-A346E".let(CustomRomRule::code), "A346E")
         assertEquals("SC51F", CustomRomRule.code("SC-51F"))

@@ -2377,7 +2377,7 @@ while true; do
             # Window blur off once on mid-range Galaxy A and M phones (0.5.14): blur is GPU-only, and on
             # the A36 it alone missed about 240 frames in 30 s. Once per guest data (marker), so a user who
             # turns it back on (Developer options > Allow window-level blurs) keeps it.
-            case \"\$(getprop ro.product.model)\" in SM-A*|SM-M*)
+            case \"\$(getprop ro.product.model):\$(getprop ro.product.vendor.model):\$(getprop ro.boot.product.model):\$(getprop ro.hardware.chipname)\" in SM-A*|SM-M*|*:SM-M*|*:SM-A*|*SM7150*)
                 if [ ! -f $STAGE/data/oneos_blur_default ]; then
                     $BB nsenter -t \$PID -m /system/bin/sh /data/oneos_genv.sh /system/bin/settings put global disable_window_blurs 1 2>/dev/null &&
                         touch $STAGE/data/oneos_blur_default && echo \"[UI Activator] window blur off once (mid-range Galaxy; Developer options turn it back on)\"

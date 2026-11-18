@@ -441,6 +441,8 @@ class ProfilesTest {
         // 0.5.22: the Galaxy M51 (SM-M515F, m51/m51xxx, SM7150)
         assertEquals(Profiles.M51, Profiles.resolve("SM-M515F", "m51", "SM7150").profile)
         assertEquals(Profiles.M51, Profiles.resolve("SM-M515F", "m51xxx", "SM7150").profile)
+        assertEquals(Profiles.M51, Profiles.resolve("SM-S911B", "dm1q", "SM7150").profile)
+        assertEquals(Profiles.M51, Profiles.resolve("SM-M515F", "m51", "SM6150").profile)
 
         // Ids unique; every choice names an image and a set built from that image,
         // each image once per profile; the fold grid with a ColorOS image on the fold
