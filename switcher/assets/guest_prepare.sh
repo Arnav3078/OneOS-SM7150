@@ -6462,11 +6462,7 @@ if grep -q '^ro.build.version.oneui=' "$ROOTFS/system/build.prop" 2>/dev/null &&
     for d in "$ROOTFS"/system/priv-app/KnoxGuard "$ROOTFS"/system/priv-app/SamsungDeviceHealthManagerService \
              "$ROOTFS"/system/priv-app/SamsungSmartSuggestions \
              "$ROOTFS"/system/priv-app/SecSetupWizard_Global \
-             "$ROOTFS"/system/priv-app/SecSetupWizard \
-             "$ROOTFS"/system/system_ext/priv-app/SetupWizard \
-             "$ROOTFS"/system_ext/priv-app/SetupWizard \
-             "$ROOTFS"/system/product/priv-app/SetupWizard \
-             "$ROOTFS"/product/priv-app/SetupWizard; do
+             "$ROOTFS"/system/priv-app/SecSetupWizard; do
         [ -d "$d" ] && [ ! -L "$d" ] || continue
         $BB mount -t tmpfs -o ro,size=4k,mode=755 tmpfs "$d" && \
             echo "Hid guest ${d#"$ROOTFS"/} (One UI image: cannot work in a guest; ONEOS_GUEST_ONEUI_KEEP_APPS=1 keeps it)"
