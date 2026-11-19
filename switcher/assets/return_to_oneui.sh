@@ -374,6 +374,14 @@ rm -f /data/local/tmp/oneos/guest_mntns
 # HyperOS: the spawner's socket (guest_start.sh made it in /dev/socket).
 rm -f /dev/socket/hyos_spawner 2>/dev/null
 
+# Restore One UI's persist props and clear persist_session.active before any unmounting in [2/4].
+# On kernels where unmounting active loop mounts causes errors=remount-ro or forced reboot,
+# doing this here guarantees One UI settings are already restored upon next boot.
+if [ -f "$S/persist_session.active" ]; then
+    STAGE="$S" /system/bin/sh "$S/guest_props.sh" restore-persist 2>&1 | sed 's/^/[persist-restore] /'
+fi
+rm -f "$S/guest_panel_fit.sh" "$S/bring_watch.sh" "$S/camera_worker.log" "$S/data/guest_audio.flag" "$S/host_audio_hal_svcs"
+
 # The guest zygote's sockets were bound onto themselves in init's mount
 # namespace (oneos_switch.sh, protect_zygote_sockets), so that init could not
 # remove them while One UI's zygote was restarted during the session (LSPosed).
@@ -590,7 +598,7 @@ done
 if [ "$MODE" != inplace ]; then
     oneos_boot_release_display
     rm -f /data/local/tmp/oneos/data/guest_audio.flag /data/local/tmp/oneos/host_audio_hal_svcs
-    STAGE=/data/local/tmp/oneos /system/bin/sh /data/local/tmp/oneos/guest_props.sh restore-persist
+    [ -f "$S/persist_session.active" ] && STAGE="$S" /system/bin/sh "$S/guest_props.sh" restore-persist
     pkill -9 -f "app_storage_loop.sh" 2>/dev/null || true
     p=$(cat $S/share_holder.pid 2>/dev/null); case "$p" in ""|*[!0-9]*) ;; *) grep -q sleep /proc/$p/cmdline 2>/dev/null && kill "$p" 2>/dev/null ;; esac; rm -f $S/share_holder.pid
     # The session is undone: record a clean return ("<boot_id> <epoch>") for this
