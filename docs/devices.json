@@ -3082,6 +3082,12 @@
           "label": "Nothing OS 5.0, A series build",
           "set": "nothing-a",
           "tested": false
+        },
+        {
+          "image": "oneui95-s948b",
+          "label": "One UI 9.5, Galaxy S26 Ultra build",
+          "set": "oneui95",
+          "tested": false
         }
       ]
     }
