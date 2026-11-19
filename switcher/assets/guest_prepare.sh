@@ -1794,8 +1794,20 @@ elif $BB mount --rbind /mnt "$ROOTFS/mnt"; then
     echo "Guest /mnt: One UI's, a recursive bind (ONEOS_GUEST_OWN_MNT=${ONEOS_GUEST_OWN_MNT:-1})"
 fi
 SERVICES_JAR="$STAGE/services_patched.jar"
-if [ "$GUEST_ONEUI" = 1 ] && [ -f "$STAGE/services_patched_oneui.jar" ]; then
-    SERVICES_JAR="$STAGE/services_patched_oneui.jar"
+if grep -q '^ro.build.version.oneui=' "$ROOTFS/system/build.prop" 2>/dev/null; then
+    for cand in /data/local/tmp/services_patched_oneui.jar \
+                /data/local/tmp/oneos/patches/services_patched_oneui.jar \
+                "$STAGE/services_patched_oneui.jar"; do
+        if [ -f "$cand" ]; then
+            SERVICES_JAR="$cand"
+            break
+        fi
+    done
+    if [ "$SERVICES_JAR" = "$STAGE/services_patched.jar" ]; then
+        LATEST_ATTIC=$(ls -td "$STAGE"/attic/*/services_patched_oneui.jar 2>/dev/null | head -n 1)
+        [ -n "$LATEST_ATTIC" ] && [ -f "$LATEST_ATTIC" ] && SERVICES_JAR="$LATEST_ATTIC"
+    fi
+    echo "One UI guest detected: SERVICES_JAR is $SERVICES_JAR"
 fi
 if [ -f "$SERVICES_JAR" ]; then
     $BB umount -l "$ROOTFS/system/framework/services.jar" 2>/dev/null || true
