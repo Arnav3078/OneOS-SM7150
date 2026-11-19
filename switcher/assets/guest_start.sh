@@ -213,6 +213,14 @@ if [ -d /data/oneos_cameradata ] && [ -d /system/cameradata ]; then
     $BB mount --bind /data/oneos_cameradata /system/cameradata && \
         echo "[Pivoted Root] Camera: the phone's cameradata bound over /system/cameradata"
 fi
+for vp in /vendor/etc/selinux/vendor_mac_permissions.xml /odm/etc/selinux/odm_mac_permissions.xml; do
+    vname="$(basename "$vp")"
+    if [ -f "/data/oneos_$vname" ] && [ -f "$vp" ]; then
+        chcon u:object_r:vendor_configs_file:s0 "/data/oneos_$vname" 2>/dev/null || true
+        $BB mount --bind "/data/oneos_$vname" "$vp" 2>/dev/null && \
+            echo "[Pivoted Root] Bound /data/oneos_$vname over $vp (Android 17 MMAC compatibility)"
+    fi
+done
 DISPLAYCONFIG=/vendor/etc/displayconfig
 LAYOUT_HIDDEN=0
 rm -f /data/oneos_fold_mode /data/oneos_inner_display

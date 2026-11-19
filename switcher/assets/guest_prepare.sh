@@ -3301,6 +3301,30 @@ if [ "${ONEOS_GUEST_SEAPP:-1}" = 1 ]; then
         done
     fi
 fi
+# MMAC SELinux install policy compatibility (Android 17 / SDK 35+):
+# In Android 17, flag ignore_mac_permissions_package causes SELinuxMMAC to ignore
+# <package> tags inside <signer> stanzas. If an older host vendor policy (e.g. M51)
+# contains a <signer> with only <package> tags and no top-level <seinfo>, SELinuxMMAC throws:
+# "Only seinfo tag XOR package tags are allowed within a signer stanza."
+# crashing PackageManagerService and system_server with:
+# "java.lang.RuntimeException: Unable to load SELinux MMAC policy".
+# Sanitize vendor mac_permissions by promoting any inner package seinfo to a top-level
+# <seinfo value="..."/> tag so it passes validation across all Android versions.
+for vp in /vendor/etc/selinux/vendor_mac_permissions.xml /odm/etc/selinux/odm_mac_permissions.xml; do
+    [ -f "$vp" ] || continue
+    vname="$(basename "$vp")"
+    out="$STAGE/data/oneos_$vname"
+    if grep -q '<package ' "$vp" 2>/dev/null; then
+        $BB sed -E 's#<package name="[^"]*"><seinfo value="([^"]*)" */?>(</package>|/>)#<seinfo value="\1"/>#g' "$vp" > "$out.tmp" && [ -s "$out.tmp" ] && mv -f "$out.tmp" "$out"
+        chmod 644 "$out" 2>/dev/null || true
+        $BB chcon u:object_r:vendor_configs_file:s0 "$out" 2>/dev/null || true
+        target="$ROOTFS$vp"
+        if [ -f "$target" ]; then
+            $BB mount --bind "$out" "$target" 2>/dev/null && \
+                echo "Bound $vname -> $target (promoted package seinfo to top-level for Android 17 MMAC)"
+        fi
+    fi
+done
 # framework_patched.jar: a Pixel guest's framework.jar with One UI's camera
 # transaction codes (patches/pixel_camera_abi.py). Listed in guards.txt and
 # checked above, so a stage that has the jar binds the one the set was built
