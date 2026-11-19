@@ -2186,7 +2186,7 @@ fi
 UIA="
 BB=\"$BB\"
 [ -n \"\$BB\" ] || BB=\$(which busybox 2>/dev/null || echo /data/adb/ksu/bin/busybox)
-GEN=\$(cat $STAGE/tmp/softreboot.gen 2>/dev/null); PASS=1; BRPID=''
+GEN=\$(cat $STAGE/tmp/softreboot.gen 2>/dev/null); PASS=1; BRPID=''; EARLY_DENSITY_DONE=0
 while true; do
 while true; do
     sleep 2
@@ -2204,7 +2204,15 @@ while true; do
             ( $BB nsenter -t \$PID -m /system/bin/sh /data/oneos_genv.sh /system/bin/sh /data/oneos_bring_restore.sh early ) </dev/null >/dev/null 2>&1 &
             echo '[UI Activator] Bring apps: early restore started (waits for the guest user to be unlocked; oneos_bring.log in the guest data)'
         fi
-        if $BB nsenter -t \$PID -m /system/bin/sh /data/oneos_genv.sh /system/bin/dumpsys window 2>/dev/null | grep -q 'mStatusBar'; then
+        if [ \"\$EARLY_DENSITY_DONE\" = 0 ] && [ -f $STAGE/host_display ]; then
+            HDEN=\$(sed -n 's/^density=\([0-9]*\).*/\1/p' $STAGE/host_display 2>/dev/null)
+            if [ -n \"\$HDEN\" ] && $BB nsenter -t \$PID -m /system/bin/sh /data/oneos_genv.sh /system/bin/wm size -d 0 >/dev/null 2>&1; then
+                $BB nsenter -t \$PID -m /system/bin/sh /data/oneos_genv.sh /system/bin/wm density \$HDEN -d 0 >/dev/null 2>&1
+                EARLY_DENSITY_DONE=1
+                echo \"[UI Activator] Early density \$HDEN applied to display 0\"
+            fi
+        fi
+        if $BB nsenter -t \$PID -m /system/bin/sh /data/oneos_genv.sh /system/bin/dumpsys window 2>/dev/null | grep -E -q 'mStatusBar|SetupWizard|SecSetupWizardActivity'; then
             echo '[UI Activator] WindowManager is ready! Dismissing bootanim and unlocking...'
             # The camera hole for the size the guest runs the panel at
             # (guest_panel_fit.sh, see where the switch writes it): the switch

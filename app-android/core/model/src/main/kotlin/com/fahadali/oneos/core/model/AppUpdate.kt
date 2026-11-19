@@ -33,8 +33,8 @@ data class AppUpdate(
     fun changes(imageId: String): Boolean = "*" in systems || imageId in systems
 
     companion object {
-        const val URL = "https://github.com/fahadalijaved/OneOS/releases/latest/download/update.json"
-        const val APK_PREFIX = "https://github.com/fahadalijaved/OneOS/releases/download/"
+        const val URL = "https://github.com/Arnav3078/OneOS-SM7150/releases/latest/download/update.json"
+        const val APK_PREFIX = "https://github.com/Arnav3078/OneOS-SM7150/releases/download/"
 
         /**
          * The team's test channel (Debug settings): an update.json in the owner's own Drive, outside

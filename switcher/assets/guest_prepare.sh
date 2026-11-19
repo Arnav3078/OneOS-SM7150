@@ -1793,13 +1793,17 @@ elif $BB mount --rbind /mnt "$ROOTFS/mnt"; then
     $BB mount --make-rslave "$ROOTFS/mnt" 2>/dev/null || true
     echo "Guest /mnt: One UI's, a recursive bind (ONEOS_GUEST_OWN_MNT=${ONEOS_GUEST_OWN_MNT:-1})"
 fi
-if [ -f "$STAGE/services_patched.jar" ]; then
+SERVICES_JAR="$STAGE/services_patched.jar"
+if [ "$GUEST_ONEUI" = 1 ] && [ -f "$STAGE/services_patched_oneui.jar" ]; then
+    SERVICES_JAR="$STAGE/services_patched_oneui.jar"
+fi
+if [ -f "$SERVICES_JAR" ]; then
     $BB umount -l "$ROOTFS/system/framework/services.jar" 2>/dev/null || true
-    $BB mount --bind "$STAGE/services_patched.jar" "$ROOTFS/system/framework/services.jar"
-    echo "Bound services_patched.jar -> $ROOTFS/system/framework/services.jar"
+    $BB mount --bind "$SERVICES_JAR" "$ROOTFS/system/framework/services.jar"
+    echo "Bound $(basename "$SERVICES_JAR") -> $ROOTFS/system/framework/services.jar"
 fi
 # The guarded jar is what keeps the guest away from One UI's data.
-if [ "$(stat -c %d:%i "$ROOTFS/system/framework/services.jar")" != "$(stat -c %d:%i "$STAGE/services_patched.jar")" ]; then
+if [ "$(stat -c %d:%i "$ROOTFS/system/framework/services.jar")" != "$(stat -c %d:%i "$SERVICES_JAR")" ]; then
     echo "ERROR: the guarded services.jar is not in place; not starting the guest"
     exit 3
 fi
