@@ -52,7 +52,8 @@ def main():
         label = ":oneos_pd_" + sig.split("(")[0]
         if kind == "list":
             loc = re.search(r"^ *\.locals (\d+)", body, re.M)
-            if not loc or int(loc.group(1)) < 1:
+            reg_match = re.search(r"^ *\.registers (\d+)", body, re.M)
+            if not (loc and int(loc.group(1)) >= 1) and not (reg_match and int(reg_match.group(1)) >= 1):
                 sys.exit(f"oneui_privacy_display_null_safe: {sig} has no local register")
             ret = (f"{ind}new-instance v0, Ljava/util/ArrayList;\n{ind}invoke-direct {{v0}}, Ljava/util/ArrayList;-><init>()V\n"
                    f"{ind}return-object v0\n")
