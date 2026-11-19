@@ -3688,6 +3688,10 @@ if [ "$GMS_WANT" = 1 ]; then
     if [ -f "$ROOTFS/system/framework/vivo-services.jar" ] && [ "${ONEOS_GUEST_VIVO_SETUP:-0}" != 1 ]; then
         PROV_SECURE="user_setup_complete=1 setup_wizard_has_run=1"
         echo "Guest setup: marked done (vivo's setup wizard stops at its vivo account; ONEOS_GUEST_VIVO_SETUP=1 keeps it)"
+    elif grep -q '^ro.build.version.oneui=' "$ROOTFS/system/build.prop" 2>/dev/null; then
+        PROV_GLOBAL="device_provisioned=1"
+        PROV_SECURE="user_setup_complete=1 setup_wizard_has_run=1"
+        echo "Guest setup: marked done (One UI image: skips SecSetupWizard Knox checks)"
     else
         PROV_GLOBAL=""; PROV_SECURE=""
         echo "Guest setup: device_provisioned / user_setup_complete left to Pixel's setup wizard (Google services presented)"
@@ -6456,7 +6460,13 @@ fi
 # ONEOS_GUEST_ONEUI_KEEP_APPS=1 keeps them.
 if grep -q '^ro.build.version.oneui=' "$ROOTFS/system/build.prop" 2>/dev/null && [ "${ONEOS_GUEST_ONEUI_KEEP_APPS:-0}" != 1 ]; then
     for d in "$ROOTFS"/system/priv-app/KnoxGuard "$ROOTFS"/system/priv-app/SamsungDeviceHealthManagerService \
-             "$ROOTFS"/system/priv-app/SamsungSmartSuggestions; do
+             "$ROOTFS"/system/priv-app/SamsungSmartSuggestions \
+             "$ROOTFS"/system/priv-app/SecSetupWizard_Global \
+             "$ROOTFS"/system/priv-app/SecSetupWizard \
+             "$ROOTFS"/system/system_ext/priv-app/SetupWizard \
+             "$ROOTFS"/system_ext/priv-app/SetupWizard \
+             "$ROOTFS"/system/product/priv-app/SetupWizard \
+             "$ROOTFS"/product/priv-app/SetupWizard; do
         [ -d "$d" ] && [ ! -L "$d" ] || continue
         $BB mount -t tmpfs -o ro,size=4k,mode=755 tmpfs "$d" && \
             echo "Hid guest ${d#"$ROOTFS"/} (One UI image: cannot work in a guest; ONEOS_GUEST_ONEUI_KEEP_APPS=1 keeps it)"
