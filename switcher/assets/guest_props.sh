@@ -1396,6 +1396,40 @@ ro.miui.backdrop_sampling_enabled=true"
             echo "guest_props: vivo's refresh-rate manager kept (One UI's active display mode group: ${VMG:-not read})"
         fi
     fi
+    # vivo OriginOS on Snapdragon 730G (SM7150 / Galaxy M51) & kernel 4.14:
+    # 1. Codec2 linear allocations must stay on ION (kernel 4.14 has no /dev/dma_heap);
+    #    boot sound effects and animations must not attempt DMA-BUF heap mapping.
+    # 2. Side-mounted fingerprint sensor mapping (vivo flagship uses optical/ultrasonic).
+    # 3. Adreno 618 Skia OpenGL backend to prevent Vulkan driver crashes.
+    # 4. VoLTE / IMS carrier override settings.
+    if [ -f "$ROOTFS/system/framework/vivo-services.jar" ]; then
+        for prop in debug.c2.use_dmabufheaps=0 \
+                    sys.boot.animaudio=0 \
+                    persist.sys.boot.sound=0 \
+                    persist.sys.vivo.bootsound=0 \
+                    ro.vivo.fingerprint.type=0 \
+                    persist.vendor.fingerprint.type=side \
+                    persist.sys.fp.optical=false \
+                    persist.sys.fp.side=true \
+                    ro.hardware.fingerprint=m51 \
+                    ro.vivo.biometrics.fingerprint.sensor_type=side \
+                    debug.hwui.render_thread=true \
+                    renderthread.skia.reduceopstasksplitting=true \
+                    ro.hwui.use_vulkan=false \
+                    debug.renderengine.backend=skiaglthreaded \
+                    debug.sf.latch_unsignaled=1 \
+                    debug.sf.hw=1 \
+                    debug.egl.hw=1 \
+                    persist.vendor.radio.ims_retry=0 \
+                    persist.dbg.volte_avail_ovr=1 \
+                    persist.dbg.vt_avail_ovr=1 \
+                    persist.dbg.wfc_avail_ovr=1; do
+            key="${prop%%=*}"
+            sed -i "/^${key}=/d" "$NEW"
+            echo "${prop}" >> "$NEW"
+        done
+        echo "guest_props: injected OriginOS 7 SM7150 stability, media & VoLTE properties"
+    fi
     # Nothing OS's ringtones: NothingGenerateRingtoneService composes each with a
     # Glyph pattern from libgenerative_glyph, which sizes it by Nothing's vendor
     # props (ro.vendor.glyph.*, the Phone (3)'s 25 x 25 matrix). Samsung's

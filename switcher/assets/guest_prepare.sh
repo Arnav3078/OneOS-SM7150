@@ -3628,6 +3628,39 @@ if [ -f "$STAGE/PermissionController_patched.apk" ]; then
     fi
 fi
 
+# libcodec2_vndk.so: C2AllocatorIon::setUsageMapper NULL pointer dereference fix
+# On Linux 4.14 / Snapdragon 730G (SM7150) without DMA-BUF heaps (/dev/dma_heap),
+# Codec2 falls back to ION. OriginOS system_server's CCodecBufferChannel calls
+# UseComponentStoreForIonAllocator which passes an uninitialized mapper into
+# C2AllocatorIon::setUsageMapper, causing a SIGSEGV null pointer dereference at boot.
+# Patch setUsageMapper to return C2_OK (mov w0, #0; ret) immediately.
+C2_ORIG="$ROOTFS/system/lib64/libcodec2_vndk.so"
+C2_PATCH="$STAGE/libcodec2_vndk_patched.so"
+if [ -f "$C2_ORIG" ] && [ ! -L "$C2_ORIG" ]; then
+    if [ ! -f "$C2_PATCH" ]; then
+        C2_SYM="_ZN7android14C2AllocatorIon14setUsageMapperERKNSt3__18functionIF11c2_status_t13C2MemoryUsagemPmPjS6_EEEmmm"
+        OFF_HEX=""
+        if command -v readelf >/dev/null 2>&1; then
+            OFF_HEX=$(readelf -sW "$C2_ORIG" 2>/dev/null | grep "$C2_SYM" | awk '{print $2}')
+        fi
+        if [ -z "$OFF_HEX" ] && [ -x /system/bin/readelf ]; then
+            OFF_HEX=$(/system/bin/readelf -sW "$C2_ORIG" 2>/dev/null | grep "$C2_SYM" | awk '{print $2}')
+        fi
+        if [ -n "$OFF_HEX" ]; then
+            OFF_DEC=$((0x$OFF_HEX))
+            $BB cp -f "$C2_ORIG" "$C2_PATCH" 2>/dev/null
+            printf '\000\000\200\122\300\003\137\326' | $BB dd of="$C2_PATCH" bs=1 seek=$OFF_DEC conv=notrunc 2>/dev/null
+            chmod 644 "$C2_PATCH"
+            $BB chcon u:object_r:system_lib_file:s0 "$C2_PATCH" 2>/dev/null || true
+            echo "Patched libcodec2_vndk.so at 0x$OFF_HEX for safe ION fallback"
+        fi
+    fi
+    if [ -f "$C2_PATCH" ]; then
+        $BB umount -l "$C2_ORIG" 2>/dev/null || true
+        $BB mount --bind "$C2_PATCH" "$C2_ORIG" && echo "Bound libcodec2_vndk_patched.so -> $C2_ORIG"
+    fi
+fi
+
 
 
 echo "=== 5. $(date +%T) Setting up Isolated Data & Bridges ==="
