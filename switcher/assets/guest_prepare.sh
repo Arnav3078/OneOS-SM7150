@@ -3653,23 +3653,23 @@ C2_PATCH="$STAGE/libcodec2_vndk_patched.so"
 if [ -f "$C2_ORIG" ] && [ ! -L "$C2_ORIG" ]; then
     if [ ! -f "$C2_PATCH" ]; then
         $BB cp -f "$C2_ORIG" "$C2_PATCH" 2>/dev/null
-        for C2_SYM in "_ZN7android14C2AllocatorIon14setUsageMapperERKNSt3__18functionIF11c2_status_t13C2MemoryUsagemPmPjS6_EEEmmm" "_ZNK7android14C2AllocatorIon5getIdEv"; do
-            OFF_HEX=""
-            if command -v readelf >/dev/null 2>&1; then
-                OFF_HEX=$(readelf -sW "$C2_ORIG" 2>/dev/null | grep "$C2_SYM" | awk '{print $2}')
-            fi
-            if [ -z "$OFF_HEX" ] && [ -x /system/bin/readelf ]; then
-                OFF_HEX=$(/system/bin/readelf -sW "$C2_ORIG" 2>/dev/null | grep "$C2_SYM" | awk '{print $2}')
-            fi
-            if [ -n "$OFF_HEX" ]; then
-                OFF_DEC=$((0x$OFF_HEX))
-                printf '\000\000\200\122\300\003\137\326' | $BB dd of="$C2_PATCH" bs=1 seek=$OFF_DEC conv=notrunc 2>/dev/null
-                echo "Patched libcodec2_vndk.so at 0x$OFF_HEX ($C2_SYM) for safe ION fallback"
-            fi
-        done
-        chmod 644 "$C2_PATCH"
-        $BB chcon u:object_r:system_lib_file:s0 "$C2_PATCH" 2>/dev/null || true
     fi
+    for C2_SYM in "_ZN7android14C2AllocatorIon14setUsageMapperERKNSt3__18functionIF11c2_status_t13C2MemoryUsagemPmPjS6_EEEmmm" "_ZNK7android14C2AllocatorIon5getIdEv"; do
+        OFF_HEX=""
+        if command -v readelf >/dev/null 2>&1; then
+            OFF_HEX=$(readelf -sW "$C2_ORIG" 2>/dev/null | grep "$C2_SYM" | awk '{print $2}')
+        fi
+        if [ -z "$OFF_HEX" ] && [ -x /system/bin/readelf ]; then
+            OFF_HEX=$(/system/bin/readelf -sW "$C2_ORIG" 2>/dev/null | grep "$C2_SYM" | awk '{print $2}')
+        fi
+        if [ -n "$OFF_HEX" ]; then
+            OFF_DEC=$((0x$OFF_HEX))
+            printf '\000\000\200\122\300\003\137\326' | $BB dd of="$C2_PATCH" bs=1 seek=$OFF_DEC conv=notrunc 2>/dev/null
+            echo "Patched libcodec2_vndk.so at 0x$OFF_HEX ($C2_SYM) for safe ION fallback"
+        fi
+    done
+    chmod 644 "$C2_PATCH"
+    $BB chcon u:object_r:system_lib_file:s0 "$C2_PATCH" 2>/dev/null || true
     if [ -f "$C2_PATCH" ]; then
         $BB umount -l "$C2_ORIG" 2>/dev/null || true
         $BB mount --bind "$C2_PATCH" "$C2_ORIG" && echo "Bound libcodec2_vndk_patched.so -> $C2_ORIG"
