@@ -1376,24 +1376,20 @@ vndk_fragment() {
 }
 SECIMS_BOUND=0
 VIVO_SE=""
-if { [ -d /system_ext/apex ] && [ -d "$GUEST_SYSTEM_EXT" ]; } || [ $INJ = 1 ] || [ $HWSM = 1 ] || [ $SEC_IMS = 1 ] || [ $SAMCAM = 1 ]; then
+if { [ -d /system_ext/apex ] && [ -d "$GUEST_SYSTEM_EXT" ]; } || [ $INJ = 1 ] || [ $HWSM = 1 ] || [ $SEC_IMS = 1 ] || [ $SAMCAM = 1 ] || grep -q '^ro.build.version.oneui=' "$ROOTFS/system/build.prop" 2>/dev/null; then
     if mount | grep -q " $GUEST_SYSTEM_EXT type overlay"; then
         echo "Overlay on $GUEST_SYSTEM_EXT already there (an earlier prepare), left as it is"
         [ $SEC_IMS = 1 ] && { SEC_IMS=0; rm -f "$STAGE/data/oneos_sec_ims"; echo "Samsung IMS in the guest: off (that overlay has no secims layer)"; }
         [ $SAMCAM = 1 ] && { SAMCAM=0; echo "Samsung Camera in the guest: off (that overlay has no mount points for it)"; }
-    elif [ ! -d "$GUEST_SYSTEM_EXT/apex" ] || [ $INJ = 1 ] || [ $HWSM = 1 ] || [ $SEC_IMS = 1 ] || [ $SAMCAM = 1 ]; then
+    elif [ ! -d "$GUEST_SYSTEM_EXT/apex" ] || [ $INJ = 1 ] || [ $HWSM = 1 ] || [ $SEC_IMS = 1 ] || [ $SAMCAM = 1 ] || grep -q '^ro.build.version.oneui=' "$ROOTFS/system/build.prop" 2>/dev/null; then
         OV="$STAGE/system_ext_ov"
         mkdir -p "$OV"
         mount | grep -q " $OV " || $BB mount -t tmpfs -o size=1m,mode=755 tmpfs "$OV"
         mkdir -p "$OV/up/apex"
-        # vivo's package manager never scans /oem (F8U run 13, OriginOS CN: no package
-        # cache entry for anything there, so the fold cutout overlay and the OneOS app
-        # were missing and the status bar ignored the cover's camera hole). Their
-        # folders go in system_ext instead: empty mount points here, bound in the /oem
-        # step. With no partition-order config, system_ext overlays rank above vendor's
-        # and product's (run 13: vendor 5, product 11), as /oem's did elsewhere.
-        # ONEOS_GUEST_VIVO_SYSEXT=0 leaves them in /oem only.
-        if [ -f "$ROOTFS/system/framework/vivo-services.jar" ] && [ "${ONEOS_GUEST_VIVO_SYSEXT:-1}" = 1 ]; then
+        # vivo and Samsung One UI package managers never scan /oem (the fold cutout
+        # overlay and the OneOS app were missing). Their folders go in system_ext instead:
+        # empty mount points here, bound in the /oem step.
+        if { [ -f "$ROOTFS/system/framework/vivo-services.jar" ] || grep -q '^ro.build.version.oneui=' "$ROOTFS/system/build.prop" 2>/dev/null; } && [ "${ONEOS_GUEST_VIVO_SYSEXT:-1}" = 1 ]; then
             for n in app/OneOSGuest:OneOSGuest.apk overlay/OneOSFoldCutout:OneOSFoldCutout.apk; do
                 d=${n%%:*}; f=${n#*:}
                 [ -f "$STAGE/$f" ] && [ ! -e "$GUEST_SYSTEM_EXT/$d" ] || continue
@@ -4428,8 +4424,9 @@ echo "=== 5.10 $(date +%T) realign ==="
 # and the staged tree never had this directory, so com.android.bluetooth
 # crash-looped every 4 s from early boot. uid 1002 = bluetooth.
 mkdir -p "$STAGE/data/misc/bluedroid" "$STAGE/data/misc/bluetooth" 2>/dev/null
-chown 1002:1002 "$STAGE/data/misc/bluedroid" "$STAGE/data/misc/bluetooth" 2>/dev/null || true
-chmod 0770 "$STAGE/data/misc/bluedroid" "$STAGE/data/misc/bluetooth" 2>/dev/null || true
+chown -R 1002:1002 "$STAGE/data/misc/bluedroid" "$STAGE/data/misc/bluetooth" 2>/dev/null || true
+chmod -R 0770 "$STAGE/data/misc/bluedroid" "$STAGE/data/misc/bluetooth" 2>/dev/null || true
+$BB chcon -R u:object_r:bluetooth_data_file:s0 "$STAGE/data/misc/bluedroid" "$STAGE/data/misc/bluetooth" 2>/dev/null || true
 
 # Apps uninstalled in the guest (0.4.50; owner and testers: "apps I uninstalled come back in the
 # next session", ColorOS Mod on the owner's Fold). The storage guard drops installd's rmPackageDir
@@ -5527,8 +5524,9 @@ echo "[fix_app_dirs] navigation: hide_navigationbar_enable=$(settings get secure
 # bluetooth uid (1002) so the stack can save bt_config.conf.
 if [ ! -d /data/misc/bluedroid ]; then
     mkdir -p /data/misc/bluedroid /data/misc/bluetooth 2>/dev/null
-    chown 1002:1002 /data/misc/bluedroid /data/misc/bluetooth 2>/dev/null
-    chmod 0770 /data/misc/bluedroid /data/misc/bluetooth 2>/dev/null
+    chown -R 1002:1002 /data/misc/bluedroid /data/misc/bluetooth 2>/dev/null
+    chmod -R 0770 /data/misc/bluedroid /data/misc/bluetooth 2>/dev/null
+    $BB chcon -R u:object_r:bluetooth_data_file:s0 /data/misc/bluedroid /data/misc/bluetooth 2>/dev/null || true
     echo "[fix_app_dirs] created /data/misc/bluedroid for the bluetooth stack"
 fi
 
@@ -6570,6 +6568,22 @@ if grep -q '^ro.build.version.oneui=' "$ROOTFS/system/build.prop" 2>/dev/null &&
             -e '/name="SHOOTING_MODE_MACRO"/{s/back="MACRO"/back=""/;s/enable="true"/enable="false"/}' \
             -e '/name="SHOOTING_MODE_FUN"/{s/back="FUN"/back=""/;s/front="FUN"/front=""/;s/enable="true"/enable="false"/}' \
             -e '/name="SHOOTING_MODE_SUPER_SLOW_MOTION"/{s/back="SUPER_SLOW_MOTION"/back=""/;s/enable="true"/enable="false"/}' \
+            -e 's/4624x3468/4000x3000/g' \
+            -e 's/4624x2604/4000x2252/g' \
+            -e 's/3472x3472/2992x2992/g' \
+            -e 's/4624x2084/4000x1800/g' \
+            -e 's/9248x6936/4000x3000/g' \
+            -e 's/2576x1932/4000x3000/g' \
+            -e 's/2560x1440/4000x2252/g' \
+            -e 's/1920x1920/2992x2992/g' \
+            -e 's/2576x1160/4000x1800/g' \
+            -e 's/3264x2448/4000x3000/g' \
+            -e 's/3264x1836/4000x2252/g' \
+            -e 's/2448x2448/2992x2992/g' \
+            -e 's/3264x1472/4000x1800/g' \
+            -e 's/6528x4896/4000x3000/g' \
+            -e 's/2400x1080/1920x1080/g' \
+            -e 's/1440x1440/1088x1088/g' \
             "$cf"
         chown -R 0:0 "$STAGE/data/oneos_cameradata"; chmod -R go-w "$STAGE/data/oneos_cameradata"
         echo "Camera: One UI's /system/cameradata copied for the guest ($(ls "$STAGE/data/oneos_cameradata" | wc -l) entries)"
