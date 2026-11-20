@@ -390,6 +390,8 @@ class StageStatusTest {
         val touched = "now ${image.rawBytes} 64773:1234:${image.rawBytes}:1792000999\nid ${image.rawBytes} ${image.rawSha256} 64773:1234:${image.rawBytes}:1792000000\n"
         assertNull(status(prepared(mapOf("stage.raw" to touched))).rawVerifiedSha256)
         assertEquals(StagedRaw(image.rawBytes, null), status(prepared(mapOf("stage.raw" to touched))).stagedRaw)
+        val rebooted = "now ${image.rawBytes} 66333:1234:${image.rawBytes}:1792000000\nid ${image.rawBytes} ${image.rawSha256} 66320:1234:${image.rawBytes}:1792000000\n"
+        assertEquals(image.rawSha256, status(prepared(mapOf("stage.raw" to rebooted))).rawVerifiedSha256)
         val noId = "now ${image.rawBytes} 64773:1234:${image.rawBytes}:1792000000\n"
         assertNull(status(prepared(mapOf("stage.raw" to noId))).rawVerifiedSha256)
         assertEquals(StagedRaw(null, null), status(prepared(), missing = setOf("stage.raw")).stagedRaw)

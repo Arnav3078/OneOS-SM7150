@@ -191,7 +191,7 @@ data class StageStatus(
     val rawVerifiedSha256: String?
         get() {
             val id = rawId ?: return null
-            if (id.size != 3 || rawSize == null || id[0] != rawSize.toString() || id[2] != rawIdentity) return null
+            if (id.size != 3 || rawSize == null || id[0] != rawSize.toString() || !sameIdentity(id[2], rawIdentity)) return null
             return id[1].takeIf { HEX64.matches(it) }
         }
 
@@ -268,7 +268,7 @@ data class StageStatus(
             rawSize == null -> p += "system.raw is missing"
             id == null || id.size != 3 -> p += "system.raw.id is missing"
             id[0] != image.rawBytes.toString() || id[1] != image.rawSha256 -> p += "system.raw is not the ${image.shortName} image"
-            id[2] != rawIdentity -> p += "system.raw changed since it was verified"
+            !sameIdentity(id[2], rawIdentity) -> p += "system.raw changed since it was verified"
         }
         val env = sessionEnv
         if (env == null) {
@@ -421,6 +421,15 @@ data class StageStatus(
         }
 
         private val HEX64 = Regex("^[0-9a-f]{64}$")
+
+        fun sameIdentity(saved: String, now: String?): Boolean {
+            if (now == null) return false
+            if (saved == now) return true
+            // If the minor block device id changed across reboot (<dev>:<ino>:<size>:<mtime>), compare <ino>:<size>:<mtime>
+            val savedSuffix = saved.substringAfter(':')
+            val nowSuffix = now.substringAfter(':')
+            return savedSuffix.isNotEmpty() && savedSuffix.contains(':') && savedSuffix == nowSuffix
+        }
 
         /** The package status.list (and root's `begin keep`) takes for the Pixel guest's data: Pixel's launcher. */
         const val PIXEL_WORD = "com.google.android.apps.nexuslauncher"
