@@ -1320,7 +1320,7 @@ object Profiles {
      * Galaxy M51, from 0.5.22: ported with One UI 9 / Android 17 (SM-M515F, m51, Snapdragon 730G
      * SM7150, Adreno 618, one 1080 x 2400 Super AMOLED Plus panel, KernelSU/root, VoLTE and Samsung Camera).
      * Supports full guest lineup: ColorOS 17, Project Infinity-X 4.1, LineageOS 24, HyperOS,
-     * OxygenOS 16, and Nothing OS (Asteroids).
+     * OxygenOS 16, Nothing OS (Asteroids), and OriginOS 7.
      */
     val M51 = PhoneProfile(
         id = ID_M51,
@@ -1336,7 +1336,7 @@ object Profiles {
             HYPEROS_CHOICE,
             OXYGEN16_CHOICE,
             NOTHING_A_CHOICE,
-            ONEUI95_CHOICE,
+            ORIGINOS_CHOICE,
         ),
         notes = listOf(OLDER_VENDOR),
     )

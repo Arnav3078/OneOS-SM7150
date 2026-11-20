@@ -286,6 +286,7 @@ class ProfilesTest {
                 Profiles.ID_S_ULTRA_8550, Profiles.ID_S_PLUS_8550, Profiles.ID_S_8550,
                 Profiles.ID_S_ULTRA_8550_JP, // 0.4.92: the au S23 Ultra, the S23 Ultra's list
                 Profiles.ID_S_8550_JP, // 0.4.93: the au S23, the S23's list
+                Profiles.ID_M51,
             ),
             offerOrigin.map { it.id }.toSet(),
         )
@@ -294,8 +295,9 @@ class ProfilesTest {
             offerOrigin.filter { p -> p.notes.any { it.id == Profiles.ID_NOTE_EXYNOS } }.map { it.id },
         )
         assertEquals(listOf(Profiles.ID_F8U), offerOrigin.filter { it.choice(Images.ID_ORIGINOS7)!!.tested }.map { it.id })
-        // 0.5.22: OriginOS 7 is last but One UI 9.5, which every phone with it also offers.
-        for (p in offerOrigin) assertEquals(p.id, listOf(Images.ID_ORIGINOS7, Images.ID_ONEUI95), p.choices.takeLast(2).map { it.imageId })
+        // 0.5.22: OriginOS 7 is last but One UI 9.5, which every phone with it also offers (M51 offers OriginOS 7 directly).
+        for (p in offerOrigin.filter { it.id != Profiles.ID_M51 }) assertEquals(p.id, listOf(Images.ID_ORIGINOS7, Images.ID_ONEUI95), p.choices.takeLast(2).map { it.imageId })
+        assertEquals(listOf(Images.ID_ORIGINOS7), Profiles.M51.choices.takeLast(1).map { it.imageId })
         assertEquals(
             listOf(
                 Profiles.F8U, Profiles.S_ULTRA_8850, Profiles.S_ULTRA_8750, Profiles.S_8750, Profiles.FOLD7, Profiles.S_PLUS_8750, Profiles.FOLD8,
@@ -675,7 +677,7 @@ class ProfilesTest {
     @Test
     fun oneUi95IsLastOnEveryOneUi9Phone() {
         val expected = ImageChoice(Images.ID_ONEUI95, PackageSets.ID_ONEUI95, tested = false)
-        for (p in Profiles.BUILT_IN) {
+        for (p in Profiles.BUILT_IN.filter { it.id != Profiles.ID_M51 }) {
             val onOneUi9 = p.images().any { it.sdk == 37 && it.id != Images.ID_ONEUI95 }
             if (onOneUi9) {
                 assertEquals(p.id, expected, p.choices.last())
@@ -684,7 +686,8 @@ class ProfilesTest {
                 assertNull(p.id, p.choice(Images.ID_ONEUI95))
             }
         }
-        assertEquals(50, Profiles.BUILT_IN.count { it.choice(Images.ID_ONEUI95) != null })
+        assertNull(Profiles.M51.choice(Images.ID_ONEUI95))
+        assertEquals(49, Profiles.BUILT_IN.count { it.choice(Images.ID_ONEUI95) != null })
         assertEquals(listOf(Images.ID_OXYGEN16), Profiles.A06.choices.map { it.imageId })
     }
 }

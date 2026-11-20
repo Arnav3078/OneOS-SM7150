@@ -698,6 +698,7 @@ profile_set() {
         "m51 hyperos-lhasa") echo hyper-f8u ;;
         "m51 oxygenos16-cph2745") echo oxygen16 ;;
         "m51 nothingos5-asteroids") echo nothing-a ;;
+        "m51 originos7-pd2609ma") echo originos ;;
         "m51 oneui95-s948b") echo oneui95 ;;
         *) return 1 ;;
     esac
