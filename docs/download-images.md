@@ -412,6 +412,7 @@ Downloads: each system's own link below (the SourceForge mirror, resumable); all
   - Galaxy S23 Ultra (au) (SCG20, SM8550), not tested yet
   - Galaxy S23 (au) (SCG19, SM8550), not tested yet
   - Galaxy S24+ (SM-S926, SM8650), not tested yet
+  - Galaxy M51 (SM-M515, SM7150), not tested yet
 
 ## LineageOS 24, OnePlus 15 build
 
@@ -525,4 +526,3 @@ Downloads: each system's own link below (the SourceForge mirror, resumable); all
   - Galaxy S23 (au) (SCG19, SM8550), not tested yet
   - Galaxy M35 5G (SM-M356, s5e8835), not tested yet
   - Galaxy S24+ (SM-S926, SM8650), not tested yet
-  - Galaxy M51 (SM-M515, SM7150), not tested yet

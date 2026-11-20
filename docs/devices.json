@@ -3360,9 +3360,9 @@
           "tested": false
         },
         {
-          "image": "oneui95-s948b",
-          "label": "One UI 9.5, Galaxy S26 Ultra build",
-          "set": "oneui95",
+          "image": "originos7-pd2609ma",
+          "label": "OriginOS 7, vivo PD2609MA build",
+          "set": "originos",
           "tested": false
         }
       ]
