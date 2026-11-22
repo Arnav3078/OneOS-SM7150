@@ -315,13 +315,9 @@ class ProfilesTest {
             offerOrigin.filter { p -> p.notes.any { it.id == Profiles.ID_NOTE_EXYNOS } }.map { it.id },
         )
         assertEquals(listOf(Profiles.ID_F8U), offerOrigin.filter { it.choice(Images.ID_ORIGINOS7)!!.tested }.map { it.id })
-        // 0.5.22: OriginOS 7 is last but One UI 9.5, which every phone with it also offers (except A71).
+        // 0.5.22: OriginOS 7 is last but One UI 9.5, which every phone with it also offers.
         for (p in offerOrigin) {
-            val expectedTail = if (p == Profiles.A71) {
-                listOf(Images.ID_NOTHING_ASTEROIDS, Images.ID_ORIGINOS7)
-            } else {
-                listOf(Images.ID_ORIGINOS7, Images.ID_ONEUI95)
-            }
+            val expectedTail = listOf(Images.ID_ORIGINOS7, Images.ID_ONEUI95)
             assertEquals(p.id, expectedTail, p.choices.filter { it.imageId != Images.ID_PIXELOS_ONYX }.takeLast(2).map { it.imageId })
         }
         assertEquals(
@@ -730,7 +726,7 @@ class ProfilesTest {
      */
     @Test
     fun oneUi95IsLastOnEveryOneUi9Phone() {
-        for (p in Profiles.BUILT_IN.filter { it.id != Profiles.ID_A71 }) {
+        for (p in Profiles.BUILT_IN) {
             // 0.5.35: the Z Fold8 takes its own set with Josh's Fold8 files (PackageSets.ONEUI95_F8).
             val expected = ImageChoice(Images.ID_ONEUI95, if (p.id == Profiles.ID_FOLD8) PackageSets.ID_ONEUI95_F8 else PackageSets.ID_ONEUI95, tested = false)
             val onOneUi9 = p.images().any { it.sdk == 37 && it.id != Images.ID_ONEUI95 }
@@ -741,8 +737,7 @@ class ProfilesTest {
                 assertNull(p.id, p.choice(Images.ID_ONEUI95))
             }
         }
-        assertNull(Profiles.A71.id, Profiles.A71.choice(Images.ID_ONEUI95))
-        assertEquals(52, Profiles.BUILT_IN.count { it.choice(Images.ID_ONEUI95) != null })
+        assertEquals(53, Profiles.BUILT_IN.count { it.choice(Images.ID_ONEUI95) != null })
         assertEquals(listOf(Images.ID_OXYGEN16), Profiles.A06.choices.map { it.imageId })
     }
 }

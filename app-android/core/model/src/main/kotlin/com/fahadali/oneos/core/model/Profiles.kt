@@ -1379,7 +1379,7 @@ object Profiles {
      * Galaxy A71, from 0.5.34: ported with One UI 9 / Android 17 and UN1CA 17 (SM-A715F, a71, Snapdragon 730/730G
      * SM7150, Adreno 618, one 1080 x 2400 Super AMOLED Plus panel, optical in-display fingerprint, KernelSU/root, VoLTE and Samsung Camera).
      * Supports full guest lineup: ColorOS 17, Project Infinity-X 4.1, LineageOS 24, HyperOS,
-     * OxygenOS 16, Nothing OS (Asteroids), OriginOS 7, and PixelOS 17.
+     * OxygenOS 16, Nothing OS (Asteroids), OriginOS 7, PixelOS 17, and One UI 9.5.
      */
     val A71 = withPixelOs(PhoneProfile(
         id = ID_A71,
@@ -1396,6 +1396,7 @@ object Profiles {
             OXYGEN16_CHOICE,
             NOTHING_A_CHOICE,
             ORIGINOS_CHOICE,
+            ONEUI95_CHOICE,
         ),
         notes = listOf(OLDER_VENDOR),
     ))
@@ -1425,8 +1426,6 @@ object Profiles {
         val oneUi = p.choices.indexOfFirst { it.imageId == Images.ID_ONEUI95 }
         return if (oneUi >= 0) {
             p.copy(choices = p.choices.subList(0, oneUi) + pixelOs + p.choices.subList(oneUi, p.choices.size))
-        } else if (p.id == ID_A71) {
-            p.copy(choices = p.choices + pixelOs)
         } else {
             p
         }

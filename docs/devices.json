@@ -3796,6 +3796,12 @@
           "label": "PixelOS 17, POCO F7 build",
           "set": "pixelos",
           "tested": false
+        },
+        {
+          "image": "oneui95-s948b",
+          "label": "One UI 9.5, Galaxy S26 Ultra build",
+          "set": "oneui95",
+          "tested": false
         }
       ]
     }

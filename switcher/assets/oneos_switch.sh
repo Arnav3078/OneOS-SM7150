@@ -1527,7 +1527,7 @@ done 2>/dev/null >> "$STAGE/host_softdog_nodes"
 sort -u -o "$STAGE/host_softdog_nodes" "$STAGE/host_softdog_nodes" 2>/dev/null
 [ -s "$STAGE/host_softdog_nodes" ] || rm -f "$STAGE/host_softdog_nodes"
 [ -n "$SF_FROZEN" ] || kill -9 $(pidof surfaceflinger) 2>/dev/null || true
-kill -9 $(pidof bootanimation) 2>/dev/null || true
+kill -9 $(pidof bootanimation samsungani) 2>/dev/null || true
 kill -9 $(pidof app_process64) 2>/dev/null || true
 kill -9 $(pidof zygote_exec) 2>/dev/null || true
 kill -9 $(pidof zygote64) 2>/dev/null || true
@@ -1558,7 +1558,7 @@ rm -f "$STAGE/data/guest_audio.flag"
 # (zygote_secondary)". Checked once a second while "running" only, it was missed between crashes
 # (init's state is "restarting" there). Now every 0.2 s, "restarting" too, on phones that have it.
 ZS2=0; [ -n "$(getprop init.svc.zygote_secondary)" ] && ZS2=1
-nohup $BB sh -c "n=0; while true; do [ \"\$(getprop init.svc.zygote)\" = \"running\" ] && setprop ctl.stop zygote; if [ $ZS2 = 1 ]; then case \"\$(getprop init.svc.zygote_secondary)\" in running|restarting) setprop ctl.stop zygote_secondary ;; esac; fi; [ ! -f $STAGE/data/oneos_host_sf_frozen ] && [ \"\$(getprop init.svc.surfaceflinger)\" = \"running\" ] && setprop ctl.stop surfaceflinger; n=\$((n + 1)); if [ \$n -ge 5 ]; then n=0; [ \"\$(getprop init.svc.bootanim)\" = \"running\" ] && setprop ctl.stop bootanim; [ -f $STAGE/data/guest_audio.flag ] && [ \"\$(getprop init.svc.audioserver)\" = \"running\" ] && setprop ctl.stop audioserver; for s in dumpstate dumpstatez bugreport bugreportd; do [ \"\$(getprop init.svc.\$s)\" = \"running\" ] && setprop ctl.stop \$s; done; fi; sleep 0.2; done" </dev/null >/dev/null 2>&1 &
+nohup $BB sh -c "n=0; while true; do [ \"\$(getprop init.svc.zygote)\" = \"running\" ] && setprop ctl.stop zygote; if [ $ZS2 = 1 ]; then case \"\$(getprop init.svc.zygote_secondary)\" in running|restarting) setprop ctl.stop zygote_secondary ;; esac; fi; [ ! -f $STAGE/data/oneos_host_sf_frozen ] && [ \"\$(getprop init.svc.surfaceflinger)\" = \"running\" ] && setprop ctl.stop surfaceflinger; n=\$((n + 1)); if [ \$n -ge 5 ]; then n=0; [ \"\$(getprop init.svc.bootanim)\" = \"running\" ] && setprop ctl.stop bootanim; [ \"\$(getprop init.svc.samsungani)\" = \"running\" ] && setprop ctl.stop samsungani; [ -f $STAGE/data/guest_audio.flag ] && [ \"\$(getprop init.svc.audioserver)\" = \"running\" ] && setprop ctl.stop audioserver; for s in dumpstate dumpstatez bugreport bugreportd; do [ \"\$(getprop init.svc.\$s)\" = \"running\" ] && setprop ctl.stop \$s; done; fi; sleep 0.2; done" </dev/null >/dev/null 2>&1 &
 sleep 1
 # The session's own copy of One UI's property store, now that One UI's
 # framework is down (guest_props.sh store-on): the guest's persist settings
@@ -2380,7 +2380,12 @@ while true; do
                 echo \"[UI Activator] guest display 0: \$(echo \"\${GSZ:-size not read}\" | tr ' ' 'x') (the whole panel: \$(cat $STAGE/host_panel_size 2>/dev/null | tr ' ' 'x')); camera hole property: '\$(getprop ro.oplus.display.screenhole.positon)'\"
             fi
             setprop service.bootanim.exit 1
-            kill -9 \$(pidof bootanimation) 2>/dev/null
+            setprop sys.boot_anim_stop 1
+            setprop ctl.stop samsungani 2>/dev/null || true
+            setprop ctl.stop bootanim 2>/dev/null || true
+            kill -9 \$(pidof bootanimation samsungani) 2>/dev/null || true
+            $BB nsenter -t \$PID -m /system/bin/sh /data/oneos_genv.sh /system/bin/cmd power set-screen-state 2 2>/dev/null || true
+            $BB nsenter -t \$PID -m /system/bin/sh /data/oneos_genv.sh /system/bin/input keyevent 224 2>/dev/null || true
             sleep 1
             # The screen's own timeout and the user's stay-awake choice: up to
             # 0.4.34 every boot forced stay awake on any charger (svc power stayon,
@@ -3091,6 +3096,22 @@ while true; do
             fi
             echo \"[UI Activator] refresh: min \$($BB nsenter -t \$PID -m /system/bin/sh /data/oneos_genv.sh /system/bin/settings get system min_refresh_rate) peak \$($BB nsenter -t \$PID -m /system/bin/sh /data/oneos_genv.sh /system/bin/settings get system peak_refresh_rate); brightness \$($BB nsenter -t \$PID -m /system/bin/sh /data/oneos_genv.sh /system/bin/settings get system screen_brightness)\"
             echo '[UI Activator] Home activated!'
+            $BB nsenter -t \$PID -m /system/bin/sh /data/oneos_genv.sh /system/bin/cmd power set-screen-state 2 2>/dev/null || true
+            $BB nsenter -t \$PID -m /system/bin/sh /data/oneos_genv.sh /system/bin/input keyevent 224 2>/dev/null || true
+            $BB nsenter -t \$PID -m /system/bin/sh /data/oneos_genv.sh /system/bin/wm dismiss-keyguard 2>/dev/null || true
+            cur_sb=\$($BB nsenter -t \$PID -m /system/bin/sh /data/oneos_genv.sh /system/bin/settings get system screen_brightness 2>/dev/null)
+            if [ -z \"\$cur_sb\" ] || [ \"\$cur_sb\" = 0 ] || [ \"\$cur_sb\" = null ]; then
+                $BB nsenter -t \$PID -m /system/bin/sh /data/oneos_genv.sh /system/bin/settings put system screen_brightness 128 2>/dev/null || true
+            fi
+            for bl in /sys/class/backlight/panel0-backlight/brightness /sys/class/backlight/panel/brightness /sys/class/lcd/panel/panel/brightness /sys/class/lcd/panel/device/backlight/panel/brightness /sys/class/leds/lcd-backlight/brightness; do
+                if [ -f \"\$bl\" ]; then
+                    cur_bl=\$(cat \"\$bl\" 2>/dev/null || echo 0)
+                    if [ \"\$cur_bl\" = 0 ] || [ -z \"\$cur_bl\" ]; then
+                        echo 180 > \"\$bl\" 2>/dev/null || true
+                        echo \"[UI Activator] Backlight forced to 180 on \$bl (was \${cur_bl:-0})\"
+                    fi
+                fi
+            done
             # ColorOS lock screen depth effect (0.4.60, owner; 0.4.59 A36 768c5a1d, S23
             # 77b9dfc0): SystemUI saves the cut-out subject as /data/oplus/os/deep_scenery_image*,
             # but that folder is system's and SystemUI runs as an app uid here (EACCES, \"can
@@ -4801,14 +4822,14 @@ if [ "$RETURN_MAX" -gt 0 ]; then
             # failed-frames count takes up to 10 s): A17 4G ColorOS 95faf6cb was sent
             # back 1 s after its first boot's bootanim was dismissed, home on its way.
             # The activator logs the dismissal before it kills bootanim.
-            ba=\$(pidof bootanimation)
+            ba=\$(pidof bootanimation samsungani)
             [ \$wm = 0 ] && [ \"\$(grep -c 'Dismissing bootanim' /data/local/tmp/ui_activator.log 2>/dev/null)\" -gt \"\${wmbase:-0}\" ] && wm=1
             # The guest's SystemUI up for under a minute: the first boot is drawing its first screens, not black
             # (11-19 report 24e2628b, A17 on One UI 9.5: returned at 150 s, 1 s after SystemUI and the setup
             # wizard started, the boot animation already gone and the activator's dismissal not yet logged).
             if pidof com.android.systemui >/dev/null; then sui=\$((sui + 10)); else sui=0; fi
             if [ \$t -ge $RETURN_BLACK ] && { ! pidof surfaceflinger >/dev/null || [ \$new_failed -gt 100 ] || { [ \$home = 0 ] && [ -z \"\$ba\" ] && { [ \$sui = 0 ] || [ \$sui -ge 60 ]; } && { [ \$wm = 0 ] || [ \$wmseen -ge 120 ]; }; }; }; then
-                echo \"\$(date) black screen after \${t}s (surfaceflinger: \$(pidof surfaceflinger), bootanimation: \$(pidof bootanimation), new failed frames: \$new_failed), returning to One UI\"
+                echo \"\$(date) black screen after \${t}s (surfaceflinger: \$(pidof surfaceflinger), bootanimation: \$(pidof bootanimation samsungani), new failed frames: \$new_failed), returning to One UI\"
                 exec /system/bin/sh $STAGE/return_to_oneui.sh
             fi
             if [ $SESSION_MAX -gt 0 ] && [ \$total -ge $SESSION_MAX ]; then

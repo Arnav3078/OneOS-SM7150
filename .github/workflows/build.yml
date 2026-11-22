@@ -1,11 +1,11 @@
 name: Build OneOS
-run-name: Build OneOS for ${{ github.ref_name == 'a71' && 'Galaxy A71' || 'Galaxy M51' }} (${{ github.ref_name }})
+run-name: Build OneOS for Galaxy M51 & A71 (SM7150)
 
 on:
   push:
-    branches: [ "main", "a71" ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ "main", "a71" ]
+    branches: [ "main" ]
   workflow_dispatch:
 
 permissions:
@@ -65,15 +65,18 @@ jobs:
 
       - name: Stage Artifacts
         run: |
-          DEVICE="${{ github.ref_name == 'a71' && 'A71' || 'M51' }}"
           mkdir -p dist
-          cp app-android/app/build/outputs/apk/full/debug/*.apk "dist/OneOS-${DEVICE}-full-debug.apk"
-          cp app-android/app/build/outputs/apk/probe/debug/*.apk "dist/OneOS-${DEVICE}-probe-debug.apk"
+          FULL_APK=$(ls app-android/app/build/outputs/apk/full/debug/*.apk | head -n 1)
+          PROBE_APK=$(ls app-android/app/build/outputs/apk/probe/debug/*.apk | head -n 1)
+          cp "$FULL_APK" "dist/OneOS-SM7150-full-debug.apk"
+          cp "$PROBE_APK" "dist/OneOS-SM7150-probe-debug.apk"
+          cp "$FULL_APK" "dist/OneOS-M51-A71-full-debug.apk"
+          cp "$PROBE_APK" "dist/OneOS-M51-A71-probe-debug.apk"
           cp switcher/assets/guest_manager.apk "dist/guest_manager.apk"
 
       - name: Upload Debug APKs
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: ${{ github.ref_name == 'a71' && 'OneOS-A71-Debug-APKs' || 'OneOS-M51-Debug-APKs' }}
+          name: OneOS-SM7150-Debug-APKs
           path: dist/

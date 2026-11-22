@@ -549,6 +549,7 @@ Downloads: each system's own link below (the SourceForge mirror, resumable); all
   - Galaxy S24+ (SM-S926, SM8650), not tested yet
   - Galaxy S26 FE (SM-S741, s5e9955), not tested yet
   - Galaxy M51 (SM-M515, SM7150), not tested yet
+  - Galaxy A71 (SM-A715, SM7150), not tested yet
 
 ## PixelOS 17, POCO F7 build
 
