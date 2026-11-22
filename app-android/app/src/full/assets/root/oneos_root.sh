@@ -780,7 +780,6 @@ profile_set() {
         "a71 nothingos5-asteroids") echo nothing-a ;;
         "a71 originos7-pd2609ma") echo originos ;;
         "a71 pixelos17-onyx") echo pixelos ;;
-        "a71 oneui95-s948b") echo oneui95 ;;
         *) return 1 ;;
     esac
 }
