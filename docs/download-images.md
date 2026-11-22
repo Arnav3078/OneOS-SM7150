@@ -68,6 +68,7 @@ Downloads: each system's own link below (the SourceForge mirror, resumable); all
   - Galaxy S24+ (SM-S926, SM8650), not tested yet
   - Galaxy S26 FE (SM-S741, s5e9955), not tested yet
   - Galaxy M51 (SM-M515, SM7150), not tested yet
+  - Galaxy A71 (SM-A715, SM7150), not tested yet
 
 ## Pixel 11 Fold, yogi build
 
@@ -179,6 +180,7 @@ Downloads: each system's own link below (the SourceForge mirror, resumable); all
   - Galaxy S24+ (SM-S926, SM8650), not tested yet
   - Galaxy S26 FE (SM-S741, s5e9955), not tested yet
   - Galaxy M51 (SM-M515, SM7150), not tested yet
+  - Galaxy A71 (SM-A715, SM7150), not tested yet
 
 ## HyperOS, Xiaomi 18 Fold build
 
@@ -234,6 +236,7 @@ Downloads: each system's own link below (the SourceForge mirror, resumable); all
   - Galaxy S24+ (SM-S926, SM8650), not tested yet
   - Galaxy S26 FE (SM-S741, s5e9955), not tested yet
   - Galaxy M51 (SM-M515, SM7150), not tested yet
+  - Galaxy A71 (SM-A715, SM7150), not tested yet
 
 ## HyperOS 4 Global
 
@@ -345,6 +348,7 @@ Downloads: each system's own link below (the SourceForge mirror, resumable); all
   - Galaxy A55 5G (SM-A556, s5e8845), not tested yet
   - Galaxy M35 5G (SM-M356, s5e8835), not tested yet
   - Galaxy M51 (SM-M515, SM7150), not tested yet
+  - Galaxy A71 (SM-A715, SM7150), not tested yet
 
 ## OxygenOS 16, OnePlus CPH2745 build
 
@@ -389,6 +393,7 @@ Downloads: each system's own link below (the SourceForge mirror, resumable); all
   - Galaxy M35 5G (SM-M356, s5e8835), not tested yet
   - Galaxy A15 5G (SM-A156, MT6835), not tested yet
   - Galaxy M51 (SM-M515, SM7150), not tested yet
+  - Galaxy A71 (SM-A715, SM7150), not tested yet
 
 ## OriginOS 7, vivo PD2609MA build
 
@@ -418,6 +423,7 @@ Downloads: each system's own link below (the SourceForge mirror, resumable); all
   - Galaxy S23 (au) (SCG19, SM8550), not tested yet
   - Galaxy S24+ (SM-S926, SM8650), not tested yet
   - Galaxy M51 (SM-M515, SM7150), not tested yet
+  - Galaxy A71 (SM-A715, SM7150), not tested yet
 
 ## LineageOS 24, OnePlus 15 build
 
@@ -476,6 +482,7 @@ Downloads: each system's own link below (the SourceForge mirror, resumable); all
   - Galaxy S24+ (SM-S926, SM8650), not tested yet
   - Galaxy S26 FE (SM-S741, s5e9955), not tested yet
   - Galaxy M51 (SM-M515, SM7150), not tested yet
+  - Galaxy A71 (SM-A715, SM7150), not tested yet
 
 ## One UI 9.5, Galaxy S26 Ultra build
 
@@ -534,3 +541,4 @@ Downloads: each system's own link below (the SourceForge mirror, resumable); all
   - Galaxy S24+ (SM-S926, SM8650), not tested yet
   - Galaxy S26 FE (SM-S741, s5e9955), not tested yet
   - Galaxy M51 (SM-M515, SM7150), not tested yet
+  - Galaxy A71 (SM-A715, SM7150), not tested yet

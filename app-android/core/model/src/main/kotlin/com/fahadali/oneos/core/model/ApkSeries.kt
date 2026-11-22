@@ -53,6 +53,8 @@ enum class ApkSeries(val id: String, val label: String, val profileIds: List<Str
             Profiles.ID_M35, Profiles.ID_A15_5G,
             // 0.5.22: the Galaxy M51 (One UI 9).
             Profiles.ID_M51,
+            // 0.5.34: the Galaxy A71 (One UI 9 / UN1CA 17).
+            Profiles.ID_A71,
         ),
     ),
     ;

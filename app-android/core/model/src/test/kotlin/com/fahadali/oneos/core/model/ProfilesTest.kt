@@ -300,6 +300,7 @@ class ProfilesTest {
                 Profiles.ID_S_ULTRA_8550_JP, // 0.4.92: the au S23 Ultra, the S23 Ultra's list
                 Profiles.ID_S_8550_JP, // 0.4.93: the au S23, the S23's list
                 Profiles.ID_M51,
+                Profiles.ID_A71,
             ),
             offerOrigin.map { it.id }.toSet(),
         )
@@ -326,6 +327,7 @@ class ProfilesTest {
                 // 0.5.28: the Galaxy S26 FE (Exynos 2500), the Z Flip7's systems on the bar settings.
                 Profiles.S26_FE,
                 Profiles.M51,
+                Profiles.A71,
             ),
             Profiles.BUILT_IN,
         )
@@ -482,6 +484,10 @@ class ProfilesTest {
         assertEquals(Profiles.M51, Profiles.resolve("SM-M515F", "m51xxx", "SM7150").profile)
         assertEquals(Profiles.M51, Profiles.resolve("SM-S911B", "dm1q", "SM7150").profile)
         assertEquals(Profiles.M51, Profiles.resolve("SM-M515F", "m51", "SM6150").profile)
+        // 0.5.34: the Galaxy A71 (SM-A715F, a71/a71xxx, SM7150)
+        assertEquals(Profiles.A71, Profiles.resolve("SM-A715F", "a71", "SM7150").profile)
+        assertEquals(Profiles.A71, Profiles.resolve("SM-A715F", "a71xxx", "SM7150").profile)
+        assertEquals(Profiles.A71, Profiles.resolve("SM-A715F", "a71", "SM6150").profile)
 
         // Ids unique; every choice names an image and a set built from that image,
         // each image once per profile; the fold grid with a ColorOS image on the fold
@@ -716,7 +722,7 @@ class ProfilesTest {
                 assertNull(p.id, p.choice(Images.ID_ONEUI95))
             }
         }
-        assertEquals(51, Profiles.BUILT_IN.count { it.choice(Images.ID_ONEUI95) != null })
+        assertEquals(52, Profiles.BUILT_IN.count { it.choice(Images.ID_ONEUI95) != null })
         assertEquals(listOf(Images.ID_OXYGEN16), Profiles.A06.choices.map { it.imageId })
     }
 }

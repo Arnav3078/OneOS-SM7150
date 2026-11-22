@@ -47,17 +47,20 @@ class FactProbe(
         val socModel = props.get("ro.soc.model").ifEmpty { Build.SOC_MODEL.orEmpty() }
         val platform = props.get("ro.board.platform")
         val bootloader = Build.BOOTLOADER.orEmpty().takeIf { it.isNotEmpty() && it != Build.UNKNOWN } ?: props.get("ro.bootloader")
-        val isM51 = vendorModel.startsWith("SM-M515", ignoreCase = true) ||
+        val isA71 = vendorModel.startsWith("SM-A715", ignoreCase = true) ||
+            vendorDevice.equals("a71", ignoreCase = true) ||
+            bootloader.startsWith("A715", ignoreCase = true)
+        val isM51 = !isA71 && (vendorModel.startsWith("SM-M515", ignoreCase = true) ||
             vendorDevice.equals("m51", ignoreCase = true) ||
             bootloader.startsWith("M515", ignoreCase = true) ||
             ((chipname.equals("SM7150", ignoreCase = true) || socModel.equals("SM7150", ignoreCase = true)) &&
-                (platform.equals("sm6150", ignoreCase = true) || platform.equals("sm7150", ignoreCase = true)))
+                (platform.equals("sm6150", ignoreCase = true) || platform.equals("sm7150", ignoreCase = true))))
 
         val rawModel = props.get("ro.product.model").ifEmpty { Build.MODEL.orEmpty() }
-        val model = if (isM51 && !rawModel.startsWith("SM-M515", ignoreCase = true)) {
-            vendorModel.ifEmpty { "SM-M515F" }
-        } else {
-            rawModel
+        val model = when {
+            isM51 && !rawModel.startsWith("SM-M515", ignoreCase = true) -> vendorModel.ifEmpty { "SM-M515F" }
+            isA71 && !rawModel.startsWith("SM-A715", ignoreCase = true) -> vendorModel.ifEmpty { "SM-A715F" }
+            else -> rawModel
         }
         val (panels, complete) = panels()
         val form = FormFactorRules.resolve(
@@ -78,10 +81,10 @@ class FactProbe(
             egl = props.get("ro.hardware.egl"),
         )
         val rawDevice = props.first("ro.product.device", "ro.product.vendor.device").ifEmpty { Build.DEVICE.orEmpty() }
-        val device = if (isM51 && !rawDevice.startsWith("m51", ignoreCase = true)) {
-            "m51"
-        } else {
-            rawDevice
+        val device = when {
+            isM51 && !rawDevice.startsWith("m51", ignoreCase = true) -> "m51"
+            isA71 && !rawDevice.startsWith("a71", ignoreCase = true) -> "a71"
+            else -> rawDevice
         }
         return DeviceFacts(
             brand = props.get("ro.product.brand").ifEmpty { Build.BRAND.orEmpty() },
@@ -109,7 +112,11 @@ class FactProbe(
             kernel = System.getProperty("os.version").orEmpty(),
             cpu = cpu(),
             bootloader = bootloader,
-            vendorModel = if (isM51 && vendorModel.isEmpty()) "SM-M515F" else vendorModel,
+            vendorModel = when {
+                isM51 && vendorModel.isEmpty() -> "SM-M515F"
+                isA71 && vendorModel.isEmpty() -> "SM-A715F"
+                else -> vendorModel
+            },
         )
     }
 

@@ -49,11 +49,13 @@ data class PhoneProfile(
         val d = device.trim().lowercase(Locale.ROOT)
         val s = soc.trim().uppercase(Locale.ROOT)
         val socMatches = s == socModel.uppercase(Locale.ROOT) ||
-            (socModel == "SM7150" && (s == "SM6150" || s == "SNAPDRAGON 730G"))
+            (socModel == "SM7150" && (s == "SM6150" || s == "SNAPDRAGON 730G" || s == "SNAPDRAGON 730"))
         val modelMatches = m.startsWith(modelPrefix) ||
-            (codename == "m51" && (m.contains("M515") || (d == "dm1q" && socMatches)))
+            (codename == "m51" && (m.contains("M515") || (d == "dm1q" && socMatches))) ||
+            (codename == "a71" && (m.contains("A715") || m.contains("A716")))
         val deviceMatches = d.equals(codename, ignoreCase = true) ||
-            (codename == "m51" && (d.startsWith("m51") || d == "dm1q"))
+            (codename == "m51" && (d.startsWith("m51") || d == "dm1q")) ||
+            (codename == "a71" && (d.startsWith("a71") || d.contains("a71")))
         return modelMatches && deviceMatches && socMatches
     }
 
@@ -155,6 +157,7 @@ object Profiles {
     const val ID_A15_5G = "a15-5g"
     const val ID_S26_FE = "s26-fe"
     const val ID_M51 = "m51"
+    const val ID_A71 = "a71"
 
     /** The SM8750 and SM8650 phones' note ([PhoneProfile.notes]) and its [Finding.reason]. */
     const val ID_NOTE_OLDER_VENDOR = "profile-vendor-older"
@@ -1361,6 +1364,32 @@ object Profiles {
         notes = listOf(OLDER_VENDOR),
     )
 
+    /**
+     * Galaxy A71, from 0.5.34: ported with One UI 9 / Android 17 and UN1CA 17 (SM-A715F, a71, Snapdragon 730/730G
+     * SM7150, Adreno 618, one 1080 x 2400 Super AMOLED Plus panel, optical in-display fingerprint, KernelSU/root, VoLTE and Samsung Camera).
+     * Supports full guest lineup: ColorOS 17, Project Infinity-X 4.1, LineageOS 24, HyperOS,
+     * OxygenOS 16, Nothing OS (Asteroids), OriginOS 7, and One UI 9.5.
+     */
+    val A71 = PhoneProfile(
+        id = ID_A71,
+        label = "Galaxy A71",
+        modelPrefix = "SM-A715",
+        codename = "a71",
+        socModel = "SM7150",
+        form = FormFactor.BAR,
+        choices = listOf(
+            X9U_IN_1105_CHOICE,
+            INFINITYX_CHOICE,
+            LINEAGE_CHOICE,
+            HYPEROS_CHOICE,
+            OXYGEN16_CHOICE,
+            NOTHING_A_CHOICE,
+            ORIGINOS_CHOICE,
+            ONEUI95_CHOICE,
+        ),
+        notes = listOf(OLDER_VENDOR),
+    )
+
     val BUILT_IN: List<PhoneProfile> = listOf(
         F8U, S_ULTRA_8850, S_ULTRA_8750, S_8750, FOLD7, S_PLUS_8750, FOLD8,
         S_8850, S_8850_JP, S_ULTRA_8650, S_8650, S_8550, S_PLUS_8550, S_PLUS_8850,
@@ -1370,6 +1399,7 @@ object Profiles {
         A55, S25_FE, S_8450, M55S, S_ULTRA_8450_JP, S_PLUS_9945, S_ULTRA_8550_JP, S_9925, A16_MTK, S_8550_JP, M35, A15_5G, S_PLUS_8650,
         S26_FE,
         M51,
+        A71,
     )
 
     /** `ro.build.version.oneui` values of profiled phones: One UI 9.0, and 9.5 (0.5.28: S26 phones updated to it, whose installd the sets read at runtime). */
@@ -1385,7 +1415,11 @@ object Profiles {
         if (direct.profile != null) return direct
         val vm = f.vendorModel.trim()
         if (vm.isNotEmpty()) {
-            val vd = if (vm.contains("M515", ignoreCase = true)) "m51" else f.device
+            val vd = when {
+                vm.contains("M515", ignoreCase = true) -> "m51"
+                vm.contains("A715", ignoreCase = true) -> "a71"
+                else -> f.device
+            }
             val fromVendor = resolve(vm, vd, f.soc.model, profiles)
             if (fromVendor.profile != null) return fromVendor
         }
