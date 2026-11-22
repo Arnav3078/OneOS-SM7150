@@ -97,7 +97,10 @@ object CustomRomRule {
         val isM51 = s.vendorModel.startsWith("SM-M515", ignoreCase = true) ||
             s.model.startsWith("SM-M515", ignoreCase = true) ||
             bl.startsWith("M515")
-        if (isM51) return null
+        val isA71 = s.vendorModel.startsWith("SM-A715", ignoreCase = true) ||
+            s.model.startsWith("SM-A715", ignoreCase = true) ||
+            bl.startsWith("A715")
+        if (isM51 || isA71) return null
 
         val oneUi = s.oneUiRaw.isNotBlank()
         val blSamsung = samsungBootloader(bl)

@@ -265,6 +265,7 @@ profile_info() {
         m35) echo "SM-M356 m35x s5e8835 bar" ;;
         a15-5g) echo "SM-A156 a15x MT6835 bar" ;;
         m51) echo "SM-M515 m51 SM7150 bar" ;;
+        a71) echo "SM-A715 a71 SM7150 bar" ;;
         *) return 1 ;;
     esac
 }
@@ -713,6 +714,15 @@ profile_set() {
         "m51 nothingos5-asteroids") echo nothing-a ;;
         "m51 originos7-pd2609ma") echo originos ;;
         "m51 oneui95-s948b") echo oneui95 ;;
+        # 0.5.34: the Galaxy A71 (One UI 9 / UN1CA 17).
+        "a71 coloros17-findx9u-in-1105") echo x9u-in-1105-sultra ;;
+        "a71 infinityx41-findx9u") echo infinityx ;;
+        "a71 lineage24-infiniti") echo lineage ;;
+        "a71 hyperos-lhasa") echo hyper-f8u ;;
+        "a71 oxygenos16-cph2745") echo oxygen16 ;;
+        "a71 nothingos5-asteroids") echo nothing-a ;;
+        "a71 originos7-pd2609ma") echo originos ;;
+        "a71 oneui95-s948b") echo oneui95 ;;
         *) return 1 ;;
     esac
 }
@@ -1480,10 +1490,10 @@ do_launch() {
     model=$(getprop ro.product.vendor.model)
     [ -n "$model" ] || model=$(getprop ro.boot.product.model)
     [ -n "$model" ] || model=$(getprop ro.product.model)
-    case "$model" in "$1"*) ;; *) [ "$1" = "SM-M515" -a "$(getprop ro.hardware.chipname)" = "SM7150" ] || refuse "this phone ($model) is not a $1" ;; esac
+    case "$model" in "$1"*) ;; *) [ "$1" = "SM-M515" -a "$(getprop ro.hardware.chipname)" = "SM7150" ] || [ "$1" = "SM-A715" -a "$(getprop ro.unica.device)" = "a71" ] || refuse "this phone ($model) is not a $1" ;; esac
     dev=$(getprop ro.product.vendor.device)
     [ -n "$dev" ] || dev=$(getprop ro.product.device)
-    [ "$dev" = "$2" ] || [ "$2" = m51 -a "$dev" = m51xxx ] || [ "$2" = m51 -a "$(getprop ro.hardware.chipname)" = SM7150 ] || [ "$2" = m51 -a "$dev" = dm1q ] || refuse "codename $dev, profile $M_PROFILE is $2"
+    [ "$dev" = "$2" ] || [ "$2" = m51 -a "$dev" = m51xxx ] || [ "$2" = m51 -a "$(getprop ro.hardware.chipname)" = SM7150 ] || [ "$2" = m51 -a "$dev" = dm1q ] || [ "$2" = a71 -a "$dev" = a71xxx ] || [ "$2" = a71 -a "$dev" = a71 ] || [ "$2" = a71 -a "$(getprop ro.unica.device)" = a71 ] || refuse "codename $dev, profile $M_PROFILE is $2"
     [ "$(getprop ro.soc.model)" = "$3" ] || [ "$(getprop ro.board.platform)" = "$3" ] || [ "$(getprop ro.board.platform)" = sm7150 ] || [ "$(getprop ro.board.platform)" = sm6150 ] || [ "$(getprop ro.hardware.chipname)" = "$3" ] || refuse "chip $(getprop ro.soc.model), profile $M_PROFILE is $3"
     isdk=$(image_sdk "$M_IMAGE")
     [ "$(getprop ro.build.version.sdk)" = "$isdk" ] || refuse "Android SDK $(getprop ro.build.version.sdk), the image is $isdk"

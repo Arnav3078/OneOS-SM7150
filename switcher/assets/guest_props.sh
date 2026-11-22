@@ -1442,16 +1442,26 @@ ro.miui.backdrop_sampling_enabled=true"
     # 3. Adreno 618 Skia OpenGL backend to prevent Vulkan driver crashes.
     # 4. VoLTE / IMS carrier override settings.
     if [ -f "$ROOTFS/system/framework/vivo-services.jar" ]; then
+        fp_type=side
+        fp_optical=false
+        fp_hw=m51
+        case "$(getprop ro.product.model):$(getprop ro.product.vendor.model):$(getprop ro.boot.product.model):$(getprop ro.unica.device)" in
+            *A71*|*a71*)
+                fp_type=optical
+                fp_optical=true
+                fp_hw=a71
+                ;;
+        esac
         for prop in debug.c2.use_dmabufheaps=0 \
                     sys.boot.animaudio=0 \
                     persist.sys.boot.sound=0 \
                     persist.sys.vivo.bootsound=0 \
-                    ro.vivo.fingerprint.type=0 \
-                    persist.vendor.fingerprint.type=side \
-                    persist.sys.fp.optical=false \
-                    persist.sys.fp.side=true \
-                    ro.hardware.fingerprint=m51 \
-                    ro.vivo.biometrics.fingerprint.sensor_type=side \
+                    ro.vivo.fingerprint.type=$([ "$fp_optical" = true ] && echo 1 || echo 0) \
+                    persist.vendor.fingerprint.type=$fp_type \
+                    persist.sys.fp.optical=$fp_optical \
+                    persist.sys.fp.side=$([ "$fp_optical" = true ] && echo false || echo true) \
+                    ro.hardware.fingerprint=$fp_hw \
+                    ro.vivo.biometrics.fingerprint.sensor_type=$fp_type \
                     debug.hwui.render_thread=true \
                     renderthread.skia.reduceopstasksplitting=true \
                     ro.hwui.use_vulkan=false \
@@ -1467,7 +1477,7 @@ ro.miui.backdrop_sampling_enabled=true"
             sed -i "/^${key}=/d" "$NEW"
             echo "${prop}" >> "$NEW"
         done
-        echo "guest_props: injected OriginOS 7 SM7150 stability, media & VoLTE properties"
+        echo "guest_props: injected OriginOS 7 SM7150 stability, media & VoLTE properties ($fp_hw: $fp_type)"
     fi
     # Nothing OS's ringtones: NothingGenerateRingtoneService composes each with a
     # Glyph pattern from libgenerative_glyph, which sizes it by Nothing's vendor
