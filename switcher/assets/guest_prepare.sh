@@ -3676,63 +3676,6 @@ if [ -f "$C2_ORIG" ] && [ ! -L "$C2_ORIG" ]; then
     fi
 fi
 
-# libmeminfo.so: BpfMapRO::abortOnMismatch & ReadProcessGpuUsageKb fix
-# On Linux 4.14 / Snapdragon 730G (SM7150) or ported host ROMs, the eBPF maps for
-# GPU memory tracking (/sys/fs/bpf/map_gpuMem_gpu_mem_total_map) have key/value schema
-# mismatches or lack kernel-side tracepoints expected by newer guests (e.g. Nothing OS 5.0).
-# ActivityManager in system_server periodically calls Debug.getGpuTotalUsageKb(),
-# invoking ReadProcessGpuUsageKb() -> BpfMapRO::abortOnMismatch(bool), causing
-# SIGABRT in system_server and crashing the framework back to host One UI.
-# Patch BpfMapRO::abortOnMismatch to ret, and patch ReadProcessGpuUsageKb /
-# ReadGpuTotalUsageKb to safely return false (0) and clear *size.
-MEM_ORIG="$ROOTFS/system/lib64/libmeminfo.so"
-MEM_PATCH="$STAGE/libmeminfo_patched.so"
-if [ -f "$MEM_ORIG" ] && [ ! -L "$MEM_ORIG" ]; then
-    rm -f "$MEM_PATCH"
-    $BB cp -f "$MEM_ORIG" "$MEM_PATCH" 2>/dev/null
-    READELF_CMD=""
-    if command -v readelf >/dev/null 2>&1; then
-        READELF_CMD="readelf"
-    elif [ -x /system/bin/readelf ]; then
-        READELF_CMD="/system/bin/readelf"
-    fi
-    if [ -n "$READELF_CMD" ]; then
-        for SYM in $($READELF_CMD -sW "$MEM_ORIG" 2>/dev/null | grep 'abortOnMismatch' | awk '{print $2 ":" $NF}'); do
-            OFF_HEX=$(echo "$SYM" | cut -d: -f1)
-            SYM_NAME=$(echo "$SYM" | cut -d: -f2)
-            if [ -n "$OFF_HEX" ]; then
-                OFF_DEC=$((0x$OFF_HEX))
-                printf '\300\003\137\326' | $BB dd of="$MEM_PATCH" bs=1 seek=$OFF_DEC conv=notrunc 2>/dev/null
-                echo "Patched libmeminfo.so at 0x$OFF_HEX ($SYM_NAME) with ret"
-            fi
-        done
-        for SYM in $($READELF_CMD -sW "$MEM_ORIG" 2>/dev/null | grep 'ReadProcessGpuUsageKb' | awk '{print $2 ":" $NF}'); do
-            OFF_HEX=$(echo "$SYM" | cut -d: -f1)
-            SYM_NAME=$(echo "$SYM" | cut -d: -f2)
-            if [ -n "$OFF_HEX" ]; then
-                OFF_DEC=$((0x$OFF_HEX))
-                printf '\102\000\000\264\137\000\000\371\000\000\200\122\300\003\137\326' | $BB dd of="$MEM_PATCH" bs=1 seek=$OFF_DEC conv=notrunc 2>/dev/null
-                echo "Patched libmeminfo.so at 0x$OFF_HEX ($SYM_NAME) for safe GPU usage stub"
-            fi
-        done
-        for SYM in $($READELF_CMD -sW "$MEM_ORIG" 2>/dev/null | grep 'ReadGpuTotalUsageKb' | awk '{print $2 ":" $NF}'); do
-            OFF_HEX=$(echo "$SYM" | cut -d: -f1)
-            SYM_NAME=$(echo "$SYM" | cut -d: -f2)
-            if [ -n "$OFF_HEX" ]; then
-                OFF_DEC=$((0x$OFF_HEX))
-                printf '\100\000\000\264\037\000\000\371\000\000\200\122\300\003\137\326' | $BB dd of="$MEM_PATCH" bs=1 seek=$OFF_DEC conv=notrunc 2>/dev/null
-                echo "Patched libmeminfo.so at 0x$OFF_HEX ($SYM_NAME) for safe GPU total usage stub"
-            fi
-        done
-    fi
-    chmod 644 "$MEM_PATCH"
-    $BB chcon u:object_r:system_lib_file:s0 "$MEM_PATCH" 2>/dev/null || true
-    if [ -f "$MEM_PATCH" ]; then
-        $BB umount -l "$MEM_ORIG" 2>/dev/null || true
-        $BB mount --bind "$MEM_PATCH" "$MEM_ORIG" && echo "Bound libmeminfo_patched.so -> $MEM_ORIG"
-    fi
-fi
-
 
 
 echo "=== 5. $(date +%T) Setting up Isolated Data & Bridges ==="
