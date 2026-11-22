@@ -250,7 +250,7 @@ object PackageSets {
         // 0.4.38: the Find N6 global image (CPH2765 EX01), on every Z Fold; the Z Fold8 too, whose
         // n6-f8 (pull request #1) patched the CN build's SystemUI. Its cell broadcast module, as the
         // other global build's (x9u-in-sultra).
-        sourceDir = "out/overlays_n6g_r22",
+        sourceDir = "out/overlays_n6g_r23",
         // 0.4.37: One UI's camera transaction codes (ColorOS's ICameraDeviceUser is one code off).
         files = COMMON + OPLUS_FRAMEWORK_IMS +
             PackageFile(WALLPAPER_GRID_RRO, FileRole.RRO) + PackageFile(CELLBROADCAST, FileRole.APEX_PAYLOAD) +
@@ -280,7 +280,7 @@ object PackageSets {
     val N6_GLOBAL_F8 = PackageSet(
         id = "n6-global-f8",
         imageId = Images.ID_FIND_N6,
-        sourceDir = "out/fold8-global-r0528",
+        sourceDir = "out/fold8-global-r0531",
         files = N6_F8U.files + PackageFile("GlobalVerifiedAddons.tar", FileRole.GUEST_FIX),
         omitted = listOf(TETHERING, "OneOSFoldCutout.apk", "OneOSTabletQs.apk"),
         // n6-f8u's files and the 10 KB empty addon archive (a channel's archive is larger, but optional).
@@ -328,11 +328,15 @@ object PackageSets {
         imageId = Images.ID_FIND_X9U_IN_1105,
         // 0.5.20 (r3): fingerprint from One UI (services_patched.jar: removal guard, AIDL sensor, its place,
         // Samsung's touch request) and samcam_a.tar (the Galaxy A36's camera for this image, A and M phones).
-        sourceDir = "out/overlays_x9u_in_1105_r6", // 0.5.21 r5: video rotation in samcam_a; 0.5.20 r4: OneOSFpTouch
+        // 0.5.32 r8: OplusGestureUI_patched.apk, raise to wake from a Galaxy's pick-up sensor (coloros_lift_wake.py).
+        // 0.5.33 r9: samcam.tar with fix_sensor_crop_tables.py (S24 FE front camera: no sensor crop table entry).
+        sourceDir = "out/overlays_x9u_in_1105_r9", // 0.5.21 r5: video rotation in samcam_a; 0.5.20 r4: OneOSFpTouch
         // 0.5.05 (r2): oplus-framework_patched.jar right after the common files, as root's set_files lists it.
         files = COMMON + OPLUS_FRAMEWORK_IMS + X9U_IN_SULTRA.files.drop(COMMON.size) +
-            PackageFile("samcam_a.tar", FileRole.GUEST_FIX),
-        approxBytes = X9U_IN_SULTRA.approxBytes + 12_546_637L + 80_261_120L,
+            PackageFile("samcam_a.tar", FileRole.GUEST_FIX) +
+            PackageFile("OplusGestureUI_patched.apk", FileRole.GUEST_FIX) +
+            PackageFile("OplusGestureUI_patched.apk.src_sha256", FileRole.GUEST_FIX),
+        approxBytes = X9U_IN_SULTRA.approxBytes + 12_546_637L + 80_261_120L + 33_762_343L,
     )
 
     /** The Pixel sets' files (root's SET_PIXEL): the same for every Pixel image. */
@@ -407,7 +411,7 @@ object PackageSets {
     val PIXEL_F8U = PackageSet(
         id = ID_PIXEL_F8U,
         imageId = Images.ID_PIXEL_YOGI,
-        sourceDir = "out/overlays_pixel_f8u_r20",
+        sourceDir = "out/overlays_pixel_f8u_r21",
         // 0.4.59 (r7): Nothing OS's per-panel cutout for this phone (switcher/overlays/fold_display_cutout):
         // without it Pixel's cover had no cutout, its icons in the camera band and app headers under it.
         files = PIXEL_FILES + pixelHinge("OneOSPixelUnfold.apk") + PackageFile("OneOSFoldCutout.apk", FileRole.RRO),
@@ -424,7 +428,7 @@ object PackageSets {
     val PIXEL_SULTRA = PackageSet(
         id = ID_PIXEL_SULTRA,
         imageId = Images.ID_PIXEL_KODIAK,
-        sourceDir = "out/overlays_pixel_kodiak_r19",
+        sourceDir = "out/overlays_pixel_kodiak_r20",
         files = PIXEL_FILES + PIXEL_DT2S,
         omitted = listOf(TETHERING),
         approxBytes = 695_159_961L,
@@ -435,7 +439,7 @@ object PackageSets {
     val PIXEL_F8 = PackageSet(
         id = ID_PIXEL_F8,
         imageId = Images.ID_PIXEL_YOGI,
-        sourceDir = "out/overlays_pixel_fold8_r20",
+        sourceDir = "out/overlays_pixel_fold8_r21",
         files = PIXEL_FILES + pixelHinge("Fold8PixelUnfold.apk"),
         omitted = listOf(TETHERING),
         approxBytes = 708_230_732L,
@@ -452,7 +456,7 @@ object PackageSets {
     val PIXEL9_SULTRA = PackageSet(
         id = ID_PIXEL9_SULTRA,
         imageId = Images.ID_PIXEL_KOMODO,
-        sourceDir = "out/overlays_pixel_komodo_r19",
+        sourceDir = "out/overlays_pixel_komodo_r20",
         // 0.4.47: this image's libcameracompatbilityinfo.so needs One UI's codes too (the Pixel 11 images' agree).
         files = PIXEL_FILES + PIXEL_DT2S + PackageFile("libcameracompatbilityinfo_patched.so", FileRole.GUARD_LIBRARY),
         omitted = listOf(TETHERING),
@@ -482,7 +486,7 @@ object PackageSets {
     val INFINITYX = PackageSet(
         id = ID_INFINITYX,
         imageId = Images.ID_INFINITYX,
-        sourceDir = "out/overlays_infinityx_r17",
+        sourceDir = "out/overlays_infinityx_r18",
         files = listOf(
             PackageFile("services_patched.jar", FileRole.GUARD_JAR),
             PackageFile("oplus-services_patched.jar", FileRole.GUARD_JAR),
@@ -531,7 +535,7 @@ object PackageSets {
     val HYPER_F8U = PackageSet(
         id = ID_HYPER_F8U,
         imageId = Images.ID_HYPEROS_LHASA,
-        sourceDir = "out/overlays_hyperos_r29",
+        sourceDir = "out/overlays_hyperos_r30",
         files = listOf(
             PackageFile("services_patched.jar", FileRole.GUARD_JAR),
             PackageFile("miui-services_patched.jar", FileRole.GUARD_JAR),
@@ -582,7 +586,7 @@ object PackageSets {
     val HYPER_HK = PackageSet(
         id = ID_HYPER_HK,
         imageId = Images.ID_HYPEROS_HONGKONG,
-        sourceDir = "out/overlays_hyperos_hk_r3",
+        sourceDir = "out/overlays_hyperos_hk_r4",
         files = listOf(
             PackageFile("services_patched.jar", FileRole.GUARD_JAR),
             PackageFile("miui-services_patched.jar", FileRole.GUARD_JAR),
@@ -638,7 +642,7 @@ object PackageSets {
     val NOTHING_F8U = PackageSet(
         id = ID_NOTHING_F8U,
         imageId = Images.ID_NOTHING_METROID,
-        sourceDir = "out/overlays_nothing_r39", // 0.5.17 r36: fingerprint from One UI, removal guard
+        sourceDir = "out/overlays_nothing_r40", // 0.5.17 r36: fingerprint from One UI, removal guard
         files = listOf(
             PackageFile("services_patched.jar", FileRole.GUARD_JAR),
             // 0.4.57 (r23): also Samsung IMS's framework members (guest_secims_members.py).
@@ -724,7 +728,7 @@ object PackageSets {
     val NOTHING_A = PackageSet(
         id = ID_NOTHING_A,
         imageId = Images.ID_NOTHING_ASTEROIDS,
-        sourceDir = "out/overlays_nothing_a_r7", // 0.5.21 r6: video rotation in samcam_a; 0.5.18 r5: OneOSSehTouch (TEST, not uploaded yet); 0.5.17 r2: fingerprint from One UI, removal guard
+        sourceDir = "out/overlays_nothing_a_r8", // 0.5.21 r6: video rotation in samcam_a; 0.5.18 r5: OneOSSehTouch (TEST, not uploaded yet); 0.5.17 r2: fingerprint from One UI, removal guard
         files = listOf(
             PackageFile("services_patched.jar", FileRole.GUARD_JAR),
             PackageFile("framework_patched.jar", FileRole.GUARD_JAR),
@@ -802,7 +806,7 @@ object PackageSets {
     val ORIGINOS = PackageSet(
         id = ID_ORIGINOS,
         imageId = Images.ID_ORIGINOS7,
-        sourceDir = "out/overlays_originos_cn_r21",
+        sourceDir = "out/overlays_originos_cn_r22",
         files = listOf(
             PackageFile("services_patched.jar", FileRole.GUARD_JAR),
             PackageFile("vivo-services_patched.jar", FileRole.GUARD_JAR),
@@ -858,7 +862,7 @@ object PackageSets {
     val LINEAGE = PackageSet(
         id = ID_LINEAGE,
         imageId = Images.ID_LINEAGE,
-        sourceDir = "out/overlays_lineage_r9", // 0.5.21 r8: video rotation in samcam_a and samcam_bar
+        sourceDir = "out/overlays_lineage_r10", // 0.5.21 r8: video rotation in samcam_a and samcam_bar
         files = listOf(
             PackageFile("services_patched.jar", FileRole.GUARD_JAR),
             PackageFile("framework_patched.jar", FileRole.GUARD_JAR),
@@ -902,14 +906,23 @@ object PackageSets {
      * (patches/oneui_no_privacy_display.py; the S26 Ultra panel feature, on in the image at build time).
      * r4: framework_patched.jar also turns the engmode client off where the phone's VINTF lacks
      * ISehEngmode/default (patches/oneui_engmode_undeclared.py; the S23 family waited forever for it).
+     * r9 (0.5.32): samcam_a_oneui.tar, the Galaxy A36's own Samsung Camera (and the five libraries the image
+     * lacks), bound by guest_prepare.sh over the image's S26 Ultra camera on Galaxy A and M phones (A17: the
+     * S26 Ultra's camera died at launch in its resolution table).
+     * r10 (0.5.33): the guest vold as "gvld" (vold_patched, service.incremental_patched.so, services_patched.jar
+     * and framework_patched.jar through patches/guest_own_vold.py, --framework for Samsung's AppLockPolicy), so
+     * One UI's vold keeps its names all session: every One UI 9.5 return had rebooted ("vold is not registered
+     * now", 13 reports).
      */
     val ONEUI95 = PackageSet(
         id = ID_ONEUI95,
         imageId = Images.ID_ONEUI95,
-        sourceDir = "out/overlays_oneui95_r7",
+        sourceDir = "out/overlays_oneui95_r10",
         files = listOf(
             PackageFile("services_patched.jar", FileRole.GUARD_JAR),
             PackageFile("framework_patched.jar", FileRole.GUARD_JAR),
+            PackageFile("vold_patched", FileRole.GUARD_EXECUTABLE),
+            PackageFile("service.incremental_patched.so", FileRole.GUARD_LIBRARY),
             PackageFile("telephony-common_patched.jar", FileRole.GUARD_JAR),
             PackageFile("libcamera_client_patched.so", FileRole.GUARD_LIBRARY),
             PackageFile("libcameracompatbilityinfo_patched.so", FileRole.GUARD_LIBRARY),
@@ -922,10 +935,11 @@ object PackageSets {
             PackageFile("OneOSFoldCutout.apk", FileRole.RRO),
             PackageFile("OneOSPixelStatusBar.apk", FileRole.RRO),
             PackageFile(GUEST_APP, FileRole.GUEST_APP),
+            PackageFile("samcam_a_oneui.tar", FileRole.GUEST_FIX),
         ) + (COMMON_PAYLOADS + listOf("bt", "nfcservices", "gmssystem", "npumanager", "telephonycore", "webapp")).map { PackageFile("${it}_payload.img", FileRole.APEX_PAYLOAD) }
             + PackageFile(CELLBROADCAST, FileRole.APEX_PAYLOAD),
         omitted = listOf(TETHERING),
-        approxBytes = 584_720_823L,
+        approxBytes = 584_720_823L + 77_086_720L + 1_542_200L + 1_813_456L,
         hasReturnApp = true,
     )
 

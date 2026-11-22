@@ -876,7 +876,7 @@ samcam_files() {
     for j in semextendedformat.jar secimaging.jar oneos-camera-compat.jar; do
         echo "sysext framework/$j $SAMCAM_SRC/$j"
     done
-    echo "sysext etc/floating_feature.xml /system/etc/floating_feature.xml"
+    echo "sysext etc/floating_feature.xml ${SAMCAM_FF:-/system/etc/floating_feature.xml}"
     echo "sysext etc/permissions/privapp-permissions-com.sec.android.app.camera.xml /system/etc/permissions/privapp-permissions-com.sec.android.app.camera.xml"
     for x in semextendedformat secimaging worker_wrapper_compat; do
         echo "sysext etc/permissions/oneos-samcam-$x.xml $SAMCAM_SRC/oneos-samcam-$x.xml"
@@ -901,7 +901,7 @@ samcam_files() {
     for lib in $SAMCAM_JNI; do
         samcam_jni_here "$lib" && echo "sys lib64/$lib /system/lib64/$lib"
     done
-    echo "sys etc/floating_feature.xml /system/etc/floating_feature.xml"
+    echo "sys etc/floating_feature.xml ${SAMCAM_FF:-/system/etc/floating_feature.xml}"
     for f in "$SAMCAM_SRC"/public.libraries-*.txt; do
         [ -f "$f" ] && echo "sys etc/${f##*/} $f"
     done
@@ -947,7 +947,51 @@ samcam_prepare() {
         [ -s "$SAMCAM_SRC/${f##*/}" ] || rm -f "$SAMCAM_SRC/${f##*/}"
     done
     rm -f "$STAGE/samcam_libs.txt"
+    # Node features the camera cannot load on this phone (0.5.34, S24 FE report 8d036182: every zoomed photo
+    # closed the camera). The camera picks its processing nodes from One UI's
+    # SEC_FLOATING_FEATURE_CAMERA_CONFIG_VENDOR_LIB_INFO; the S24 FE's says ai_clear_zoom.arcsoft.v2, and the S26
+    # Ultra camera's v2 node then dlopen()s libdtsr_wrapper_v1.camera.samsung.so, which this One UI does not have
+    # ("load nativeNode(id: 4900200) fail", FATAL in the post-processing thread). Without the entry the camera
+    # takes its own dummy node for that feature, as on a phone without it. "feature:library" pairs; an entry is
+    # dropped only where its library is in neither One UI's /system/lib64 nor the staged camera.
+    # ONEOS_GUEST_SAMCAM_NODE_FILTER=0 binds One UI's list as it is.
+    SAMCAM_FF=/system/etc/floating_feature.xml
+    rm -f "$SAMCAM_SRC/oneos-samcam-floating_feature.xml"
+    ff_drop=""
+    for pair in ai_clear_zoom:libdtsr_wrapper_v1.camera.samsung.so; do
+        [ -e "/system/lib64/${pair#*:}" ] || [ -e "$SAMCAM_SRC/${pair#*:}" ] || ff_drop="$ff_drop ${pair%%:*}"
+    done
+    if [ "${ONEOS_GUEST_SAMCAM_NODE_FILTER:-1}" = 1 ] && [ -n "$ff_drop" ] &&
+       grep -q '<SEC_FLOATING_FEATURE_CAMERA_CONFIG_VENDOR_LIB_INFO>' "$SAMCAM_FF" 2>/dev/null; then
+        if awk -v drop="$ff_drop" '
+            BEGIN { n = split(drop, d, " "); for (i = 1; i <= n; i++) if (d[i] != "") gone[d[i]] = 1 }
+            {
+                k = "<SEC_FLOATING_FEATURE_CAMERA_CONFIG_VENDOR_LIB_INFO>"
+                if ((s = index($0, k)) > 0 && (e = index($0, "</SEC_FLOATING_FEATURE_CAMERA_CONFIG_VENDOR_LIB_INFO>")) > s) {
+                    v = substr($0, s + length(k), e - s - length(k)); m = split(v, a, ","); out = ""; cut = ""
+                    for (i = 1; i <= m; i++) {
+                        x = a[i]; gsub(/^[ \t]+|[ \t]+$/, "", x); f = x; sub(/\..*/, "", f)
+                        if (x == "") continue
+                        if (f in gone) { cut = cut (cut == "" ? "" : ",") x; continue }
+                        out = out (out == "" ? "" : ",") x
+                    }
+                    print substr($0, 1, s + length(k) - 1) out substr($0, e)
+                    if (cut != "") printf "%s\n", cut > "/dev/stderr"
+                    next
+                }
+                print
+            }' "$SAMCAM_FF" > "$SAMCAM_SRC/oneos-samcam-floating_feature.xml" 2> "$STAGE/samcam_ff_cut.txt" &&
+           grep -q '</SecFloatingFeatureSet>' "$SAMCAM_SRC/oneos-samcam-floating_feature.xml" &&
+           [ -s "$STAGE/samcam_ff_cut.txt" ]; then
+            SAMCAM_FF="$SAMCAM_SRC/oneos-samcam-floating_feature.xml"
+            echo "Samsung Camera: node features without their library on this phone left out: $(cat "$STAGE/samcam_ff_cut.txt")"
+        else
+            rm -f "$SAMCAM_SRC/oneos-samcam-floating_feature.xml"
+        fi
+        rm -f "$STAGE/samcam_ff_cut.txt"
+    fi
     chmod 755 "$SAMCAM_SRC"; chmod 644 "$SAMCAM_SRC"/*
+    [ "$SAMCAM_FF" = /system/etc/floating_feature.xml ] || $BB chcon u:object_r:system_file:s0 "$SAMCAM_FF" 2>/dev/null || true
     if [ ! -f "$SAMCAM_SRC/.selinux" ] ||
        [ "$(cat "$SAMCAM_SRC/.selinux" 2>/dev/null)" != "$(cat "$SAMCAM_SRC/.from_tar" 2>/dev/null)" ]; then
         if $BB chcon -R u:object_r:system_file:s0 "$SAMCAM_SRC" 2>/dev/null; then
@@ -2005,6 +2049,29 @@ if [ -f "$STAGE/BBKLauncher2_patched.apk" ] && [ -f "$VLA" ] && [ ! -L "$VLA" ] 
         fi
     fi
 fi
+# OplusGestureUI_patched.apk (ColorOS, 0.5.32; switcher/patches/coloros_lift_wake.py): raise to wake from the
+# Galaxy's pick-up gesture sensor. ColorOS's gesture service took every Galaxy tilt for "put down" (OPPO's sensor
+# sends 0 for a lift, Samsung's 1.0 for any tilt), so the screen never woke (S24 FE, report 44afc238). Only over
+# the very APK it was made from (OplusGestureUI_patched.apk.src_sha256, written by make-overlays.sh).
+OGU="$ROOTFS/system/system_ext/app/OplusGestureUI/OplusGestureUI.apk"
+if [ -f "$STAGE/OplusGestureUI_patched.apk" ] && [ -f "$OGU" ] && [ ! -L "$OGU" ] && [ "${ONEOS_GUEST_LIFT_WAKE:-1}" = 1 ]; then
+    $BB umount -l "$OGU" 2>/dev/null || true
+    OGU_SUM=$(sha256sum "$OGU" 2>/dev/null | cut -d' ' -f1)
+    OGU_SRC=$(cat "$STAGE/OplusGestureUI_patched.apk.src_sha256" 2>/dev/null)
+    if [ -z "$OGU_SUM" ] || [ "$OGU_SRC" != "$OGU_SUM" ]; then
+        echo "ColorOS raise to wake: the staged OplusGestureUI_patched.apk was made from another OplusGestureUI.apk (${OGU_SRC:-no .src_sha256}); the image's own stays"
+    else
+        chmod 644 "$STAGE/OplusGestureUI_patched.apk"
+        $BB chcon u:object_r:system_file:s0 "$STAGE/OplusGestureUI_patched.apk" 2>/dev/null || true
+        $BB mount --bind "$STAGE/OplusGestureUI_patched.apk" "$OGU" &&
+            $BB mount -o remount,bind,ro "$STAGE/OplusGestureUI_patched.apk" "$OGU" 2>/dev/null
+        if [ "$(stat -c %d:%i "$OGU" 2>/dev/null)" = "$(stat -c %d:%i "$STAGE/OplusGestureUI_patched.apk")" ]; then
+            echo "Bound OplusGestureUI_patched.apk -> $OGU (raise to wake from the pick-up sensor)"
+        else
+            echo "!!! WARNING: OplusGestureUI_patched.apk is not in place; raise to wake stays off on this phone"
+        fi
+    fi
+fi
 if [ -f "$STAGE/oplus-services_patched.jar" ] && [ -f "$ROOTFS/system/framework/oplus-services.jar" ]; then
     $BB umount -l "$ROOTFS/system/framework/oplus-services.jar" 2>/dev/null || true
     $BB mount --bind "$STAGE/oplus-services_patched.jar" "$ROOTFS/system/framework/oplus-services.jar"
@@ -2226,16 +2293,99 @@ apm_a2dp() {
 }
 
 # apm_usb <copy>: the USB outputs, see above.
+# 0.5.33 (Galaxy A35, LineageOS: USB-C headphones silent; a tester's module fixed it with a policy file that has
+# them in the primary module): "a USB output" means a USB device or headset. The A35's
+# usb_audio_policy_configuration.xml names only AUDIO_DEVICE_OUT_USB_ACCESSORY ("USB Host Out"), which the old
+# check took for USB headphones, so it logged "USB outputs added" and the guest had none (A35 OxygenOS 5a57891c:
+# the usb module held the accessory port alone). That file is still included where it names any USB output (the
+# accessory stays as it was). Where no file names a USB device or headset after that, and One UI's own policy
+# file (_sec or _base) has them, Samsung's primary HAL plays USB audio, as on One UI: the primary module gets
+# the tester's layout - USB device and headset ports both ways (no profiles: the HAL reports them when they are
+# plugged), the hifi_playback and hifi_input mix ports, the outputs fed by every output mix port of the module
+# and hifi_playback, the inputs added to the module's capture route and to hifi_input.
 apm_usb() {
     [ "${ONEOS_GUEST_APM_USB:-1}" = 1 ] || return 0
+    apm_dev='AUDIO_DEVICE_OUT_USB_(DEVICE|HEADSET)"'
     apm_inc=$($BB grep -o 'href="/[^" ]*"' "$1" | $BB sed -e 's/^href="//' -e 's/"$//')
-    if $BB grep -qs 'AUDIO_DEVICE_OUT_USB_' "$1" $apm_inc; then return 0; fi
+    if $BB grep -qs -E "$apm_dev" "$1" $apm_inc; then return 0; fi
     apm_uf=/vendor/etc/usb_audio_policy_configuration.xml
-    if $BB grep -qs 'AUDIO_DEVICE_OUT_USB_' "$apm_uf" && apm_hw_lib usb \
+    if ! $BB grep -qs 'AUDIO_DEVICE_OUT_USB_' "$1" $apm_inc && $BB grep -qs 'AUDIO_DEVICE_OUT_USB_' "$apm_uf" && apm_hw_lib usb \
        && apm_include "$1" "$apm_uf" "USB headphones through the vendor's own usb audio module"; then
         APM_USB="USB outputs added with the vendor's usb module (${apm_uf##*/})"
         APM_ADDED=1
+        $BB grep -qs -E "$apm_dev" "$apm_uf" && return 0
+        APM_USB="the vendor's usb module (${apm_uf##*/}) included, but it has no USB device or headset"
     fi
+    $BB grep -qs -E "$apm_dev" /vendor/etc/audio_policy_configuration_sec.xml /vendor/etc/audio_policy_configuration_base.xml || return 0
+    rm -f "$1.usb"
+    if awk '
+        function blank(n,  s) { s = ""; while (n-- > 0) s = s " "; return s }
+        function attr(tag, name,  v, q) {
+            if (!match(tag, "[ \t\n]" name "[ \t\n]*=[ \t\n]*\"[^\"]*\"")) return ""
+            v = substr(tag, RSTART, RLENGTH); q = index(v, "\"")
+            return substr(v, q + 1, length(v) - q - 1)
+        }
+        { doc = doc $0 "\n" }
+        END {
+            w = doc
+            while ((i = index(w, "<!--")) > 0) {
+                j = index(substr(w, i), "-->"); if (!j) exit 1
+                w = substr(w, 1, i - 1) blank(j + 2) substr(w, i + j + 2)
+            }
+            if (index(w, "OneOS USB")) exit 1
+            if (!match(w, "<module[^>]*[ \t\n]name[ \t\n]*=[ \t\n]*\"primary\"[^>]*>")) exit 1
+            ms = RSTART; me = index(substr(w, ms), "</module>"); if (!me) exit 1
+            m = substr(w, ms, me - 1)
+            # Output and input mix ports of the module, in their order.
+            outs = ""; cap = ""; p = m
+            while ((i = index(p, "<mixPort")) > 0) {
+                p = substr(p, i); j = index(p, ">"); if (!j) exit 1
+                tag = substr(p, 1, j); n = attr(tag, "name"); r = attr(tag, "role")
+                if (n == "hifi_playback" || n == "hifi_input") exit 1
+                if (r == "source" && n != "") outs = outs (outs == "" ? "" : ",") n
+                if (r == "sink" && n != "" && cap == "") cap = n
+                p = substr(p, j + 1)
+            }
+            if (outs == "" || cap == "") exit 1
+            # The capture route: <route ... sink="<first input mix port>" ...>, its sources attribute.
+            p = m; cr = 0
+            while ((i = index(p, "<route")) > 0) {
+                j = index(substr(p, i), ">"); if (!j) exit 1
+                tag = substr(p, i, j)
+                if (attr(tag, "sink") == cap) { cr = (length(m) - length(p)) + i; crl = j; break }
+                p = substr(p, i + j)
+            }
+            if (!cr) exit 1
+            ctag = substr(m, cr, crl)
+            if (!match(ctag, "[ \t\n]sources[ \t\n]*=[ \t\n]*\"[^\"]*\"")) exit 1
+            sq = RSTART + RLENGTH - 1                       # the closing quote of sources, in ctag
+            mp = index(m, "</mixPorts>"); dp = index(m, "</devicePorts>"); rt = index(m, "</routes>")
+            if (!mp || !dp || !rt || !(mp < dp && dp < rt && cr < rt)) exit 1
+            ind = "            "
+            mixes = "<!-- OneOS USB: USB audio through the primary module, as in the policy file One UI itself loads -->\n" ind \
+                "<mixPort name=\"hifi_playback\" role=\"source\"/>\n" ind "<mixPort name=\"hifi_input\" role=\"sink\"/>\n" ind
+            ports = "<!-- OneOS USB devices -->\n" ind \
+                "<devicePort tagName=\"OneOS USB Device Out\" type=\"AUDIO_DEVICE_OUT_USB_DEVICE\" role=\"sink\"/>\n" ind \
+                "<devicePort tagName=\"OneOS USB Headset Out\" type=\"AUDIO_DEVICE_OUT_USB_HEADSET\" role=\"sink\"/>\n" ind \
+                "<devicePort tagName=\"OneOS USB Device In\" type=\"AUDIO_DEVICE_IN_USB_DEVICE\" role=\"source\"/>\n" ind \
+                "<devicePort tagName=\"OneOS USB Headset In\" type=\"AUDIO_DEVICE_IN_USB_HEADSET\" role=\"source\"/>\n" ind
+            src = outs ",hifi_playback"
+            routes = "<!-- OneOS USB routes -->\n" ind \
+                "<route type=\"mix\" sink=\"OneOS USB Device Out\" sources=\"" src "\"/>\n" ind \
+                "<route type=\"mix\" sink=\"OneOS USB Headset Out\" sources=\"" src "\"/>\n" ind \
+                "<route type=\"mix\" sink=\"hifi_input\" sources=\"OneOS USB Device In,OneOS USB Headset In\"/>\n" ind
+            # Absolute positions in doc (comments were blanked in place, so positions agree).
+            MP = ms + mp - 1; DP = ms + dp - 1; RT = ms + rt - 1; SQ = ms + cr - 1 + sq - 1
+            printf "%s", substr(doc, 1, MP - 1) mixes substr(doc, MP, DP - MP) ports substr(doc, DP, SQ - DP) \
+                ",OneOS USB Device In,OneOS USB Headset In" substr(doc, SQ, RT - SQ) routes substr(doc, RT)
+        }' "$1" > "$1.usb" && [ "$($BB grep -c 'tagName="OneOS USB ' "$1.usb")" = 4 ]; then
+        cat "$1.usb" > "$1"
+        APM_USB="USB outputs added on the primary module (${APM_USB:+$APM_USB; }as in One UI's own policy file)"
+        APM_ADDED=1
+    else
+        APM_USB="${APM_USB:+$APM_USB; }no USB outputs added on the primary module (its layout is not one this knows)"
+    fi
+    rm -f "$1.usb"
     return 0
 }
 
@@ -3504,6 +3654,12 @@ if [ "${ONEOS_GUEST_BIOMETRICS:-1}" = 1 ] && grep -q '^# biometric-remove guard'
     ULINE=$(grep 'type INTERNAL' "$STAGE/display_host.txt" 2>/dev/null | grep 'FLAG_ALLOWED_TO_BE_DEFAULT_DISPLAY' | head -n 1)
     UWH=$(printf '%s\n' "$ULINE" | sed -n 's/.*physicalDisplayWidth=\([0-9]*\) physicalDisplayHeight=\([0-9]*\).*/\1 \2/p')
     UDPI=$(printf '%s\n' "$ULINE" | sed -n 's/.*density [0-9]*, \([0-9.]*\) x [0-9.]* dpi.*/\1/p')
+    # 0.5.32: the panel's own density, the dpi of its widest mode in One UI's SurfaceFlinger (display_modes_host.log),
+    # as the HyperOS glyph has it (guest_props.sh). The display line's dpi is the running mode's: a QHD panel at its
+    # default FHD+ (S24+, S25+: 386 for 515) put every guest's sensor circle a quarter of its height too low.
+    UPPI=$(awk 'match($0, /resolution=[0-9]+x[0-9]+/) { split(substr($0, RSTART + 11, RLENGTH - 11), a, "x"); if (a[1] + 0 <= w) next;
+            w = a[1] + 0; if (match($0, /dpi=[0-9.]+/)) d = substr($0, RSTART + 4, RLENGTH - 4) + 0 } END { if (w && d >= 100) print d }' "$STAGE/display_modes_host.log" 2>/dev/null)
+    [ -n "$UPPI" ] && UDPI=$UPPI
     UGEO=''; [ -n "$UWH" ] && [ -n "$UDPI" ] && UGEO="$UWH $UDPI"
     # The guest's /data/system (BIO_DST is its users/0: one level up was users/, where OneOSUdfps never looked).
     UFILE=$STAGE/data/system/oneos_udfps
@@ -4595,6 +4751,19 @@ mkdir -p "$STAGE/data/preapps-lib" 2>/dev/null
 chown 1000:1000 "$STAGE/data/preapps-lib" 2>/dev/null || true
 chmod 0771 "$STAGE/data/preapps-lib" 2>/dev/null || true
 
+# 0.5.31: HyperOS's status bar in light apps. With the Dynamic Island on (persist.sys.feature.island=1) and a
+# phone at or above Xiaomi's layered-bars level, WindowManager sends an app's bar colours to a per-app status
+# bar (BarFollowAnimationImpl.getDisplayIdWithStatusIdBit: display id | 1 << 24), and the screen's own bar kept
+# the launcher's light icons: white on white in Settings (owner's A36, HyperOS 4 Global, 11-20: Settings'
+# LIGHT_STATUS_BARS logged for display 16777216 only). debug.layered.strategy.phone is Xiaomi's own threshold
+# (BarFollowAnimationUtils.MULTIS_STATUSBAR_ENABLED: the phone's computility level must reach it; the A36 is
+# 4); 99 keeps every phone below it, so the bar colours go to the screen's bar as on any Android. The island
+# stays. The guest reads One UI's property area; return_to_oneui.sh clears it. ONEOS_HYPER_APP_BARS=1 keeps
+# Xiaomi's per-app bars.
+if [ -e "$GUEST_SYSTEM_EXT/framework/miui-services.jar" ] && [ "${ONEOS_HYPER_APP_BARS:-0}" != 1 ]; then
+    setprop debug.layered.strategy.phone 99 && echo "HyperOS status bar: app colours to the screen's bar (debug.layered.strategy.phone=99)"
+fi
+
 echo "=== 5.12 $(date +%T) HyperOS folders ==="
 # HyperOS's own /data folders. Its init rc files (system, system_ext, product)
 # make /data/system/theme, theme_magic and fonts (owner system_theme, 6101 in
@@ -5326,6 +5495,32 @@ echo "=== 5d. $(date +%T) Bridging host /data app and storage trees into the sta
 # /data/data and /data/media. Host path:stage path.
 # $BRIDGES comes from bridges.sh (sourced at the top).
 rm -f "$STAGE/share_holder.pid"
+# 0.5.31: One UI's own app, data and user_de folders, read only, for Bring apps while the session runs: the
+# bridges below cover them in One UI's namespace, so the root script's bring-add read the guest's folders and
+# refused every One UI app ("not an installed user app"; owner's A36, HyperOS, com.fahadali.xgram). Root's
+# alone (0700), outside /data, never in the guest's namespace (guest_start.sh drops it there), gone at the
+# return (return_to_oneui.sh). ONEOS_BRING_LIVE_VIEW=0 leaves it out (Bring apps then works with the guest down only).
+OUV=/mnt/oneos_oneui
+for d in app data user_de; do umount -l "$OUV/$d" 2>/dev/null; done
+if [ "${ONEOS_BRING_LIVE_VIEW:-1}" = 1 ] && mkdir -p "$OUV" && chmod 700 "$OUV"; then
+    for d in app data user_de; do
+        [ -d "/data/$d" ] && ! awk -v p="/data/$d" '$5 == p' /proc/self/mountinfo | grep -q . || continue
+        # Private before the bridges: a bind of /data/$d joins /data's peer group, so the bridge below
+        # propagated onto the view too and Bring apps read the guest's apps again (owner's A36, 11-20,
+        # 0.5.31 test: xgram "not an installed user app", mountinfo showed the bridge stacked on the view).
+        # busybox remounts a bind only with the path twice (one path: "can't find ... in /proc/mounts",
+        # and the view stayed writable).
+        mkdir -p "$OUV/$d" && $BB mount --bind "/data/$d" "$OUV/$d" || continue
+        if ! $BB mount --make-private "$OUV/$d"; then
+            umount -l "$OUV/$d" 2>/dev/null; echo "WARNING: could not make $OUV/$d private; left out (Bring apps works with the guest down only)"; continue
+        fi
+        if $BB mount -o remount,bind,ro,nosuid,nodev "$OUV/$d" "$OUV/$d"; then
+            echo "One UI's /data/$d read only at $OUV/$d (Bring apps)"
+        else
+            umount -l "$OUV/$d" 2>/dev/null; echo "WARNING: could not make $OUV/$d read only; left out (Bring apps works with the guest down only)"
+        fi
+    done
+fi
 for pair in $BRIDGES; do
     h=${pair%%:*}; s=${pair#*:}
     mkdir -p "$STAGE/data/$s" 2>/dev/null || true
@@ -6557,11 +6752,14 @@ fi
 # app, which is persistent: S25 Ultra Pixel 9 Pro XL session af6c2b17, 1394
 # crashes in 15 minutes (a zygote fork every 0.6 s at full CPU clock, skin
 # 54 C).
-if [ -d "$GUEST_SYSTEM_EXT/priv-app/ConnectivityThermalPowerManager" ] && \
-   [ ! -L "$GUEST_SYSTEM_EXT/priv-app/ConnectivityThermalPowerManager" ]; then
-    $BB mount -t tmpfs -o ro,size=4k,mode=755 tmpfs "$GUEST_SYSTEM_EXT/priv-app/ConnectivityThermalPowerManager" && \
-        echo "Hid guest system_ext/priv-app/ConnectivityThermalPowerManager (Pixel modem throttling; crash loop on a Samsung modem)"
-fi
+# 0.5.32: Pixel 11 Fold and Pixel 11 Pro ship the same app (same package) as
+# ConnectivityThermalPowerManagerNextgen, which the folder name above missed (debloater inventory).
+for d in ConnectivityThermalPowerManager ConnectivityThermalPowerManagerNextgen; do
+    if [ -d "$GUEST_SYSTEM_EXT/priv-app/$d" ] && [ ! -L "$GUEST_SYSTEM_EXT/priv-app/$d" ]; then
+        $BB mount -t tmpfs -o ro,size=4k,mode=755 tmpfs "$GUEST_SYSTEM_EXT/priv-app/$d" && \
+            echo "Hid guest system_ext/priv-app/$d (Pixel modem throttling; crash loop on a Samsung modem)"
+    fi
+done
 # OxygenOS 16's NFC app (system/priv-app/NfcNci) asks for OPPO's NFC HAL
 # (vendor.oplus.hardware.nfc@1.0::IOplusNfc) in a static initializer
 # (NfcChipManager.<clinit> from VendorNfcService), and HwBinder.getService throws
@@ -6602,6 +6800,21 @@ if grep -q '^ro.build.version.oneui=' "$ROOTFS/system/build.prop" 2>/dev/null &&
             echo "Hid guest ${d#"$ROOTFS"/} (One UI image: cannot work in a guest; ONEOS_GUEST_ONEUI_KEEP_APPS=1 keeps it)"
     done
 fi
+# HyperOS (0.5.31): Xiaomi Find Device (com.xiaomi.finddevice, product/priv-app/MiuiFindDevice) works only with
+# Xiaomi's own servers and phone hardware; in a session its job held PARTIAL wakelocks for hours
+# (FindDeviceJobExecutorWakeLock, the owner's A36 HyperOS 4 Global, 11-20: 14 min of deep sleep in 5.6 h, 20 % lost
+# in 2 h with the screen off). Stopped, a job started it again within seconds, and HyperOS refuses to disable a
+# system package. Hidden here like the One UI apps below. ONEOS_GUEST_MIUI_FIND_DEVICE=1 keeps it.
+# 0.5.32: the China build (hyperos-lhasa) ships the same package as product/priv-app/MIUIFindDeviceCN.
+if [ "${ONEOS_GUEST_MIUI_FIND_DEVICE:-0}" != 1 ]; then
+    for d in "$ROOTFS"/product/priv-app/MiuiFindDevice "$ROOTFS"/system/product/priv-app/MiuiFindDevice \
+             "$ROOTFS"/system/priv-app/MiuiFindDevice "$ROOTFS"/system_ext/priv-app/MiuiFindDevice \
+             "$ROOTFS"/product/priv-app/MIUIFindDeviceCN "$ROOTFS"/system/product/priv-app/MIUIFindDeviceCN; do
+        [ -d "$d" ] && [ ! -L "$d" ] || continue
+        $BB mount -t tmpfs -o ro,size=4k,mode=755 tmpfs "$d" && \
+            echo "Hid guest ${d#"$ROOTFS"/} (Xiaomi Find Device held wakelocks for hours; ONEOS_GUEST_MIUI_FIND_DEVICE=1 keeps it)"
+    done
+fi
 # One UI images (0.5.22): the phone's own netd client library. netd is One UI's; One UI 9.5's
 # libnetd_client.so speaks a newer fwmarkd protocol (FwmarkClient::send(fd, CmdId, ...)) than
 # One UI 9.0's netd reads (FwmarkCommand structs), so every socket bind to a network failed with
@@ -6616,6 +6829,71 @@ if grep -q '^ro.build.version.oneui=' "$ROOTFS/system/build.prop" 2>/dev/null; t
             echo "Bound One UI's /system/$b/libnetd_client.so over the guest's (One UI image: One UI's netd protocol)"
     done
 fi
+# One UI images (0.5.32): Samsung's Message Guard policy, which One UI's KumihoSync service keeps in /data/system
+# and a guest never gets; MessageGuardSync died on it again and again ("/data/system/Kumiho/Kumiho.policy: open
+# failed: ENOENT", 4 One UI 9.5 reports, S25 01073ad0). One UI's copy, owner, mode and label kept, when the guest
+# has none.
+if grep -q '^ro.build.version.oneui=' "$ROOTFS/system/build.prop" 2>/dev/null && [ -f /data/system/Kumiho/Kumiho.policy ] &&
+   [ -d "$STAGE/data/system" ] && [ ! -L "$STAGE/data/system" ] && [ ! -e "$STAGE/data/system/Kumiho/Kumiho.policy" ] &&
+   [ ! -L "$STAGE/data/system/Kumiho" ]; then
+    if cp -a /data/system/Kumiho "$STAGE/data/system/" 2>/dev/null; then
+        echo "Message Guard: One UI's /data/system/Kumiho policy copied for the guest"
+    else
+        echo "Message Guard: One UI's policy could not be copied"
+    fi
+fi
+# One UI images on a Galaxy A or M phone (0.5.32): the A series' own Samsung Camera (the Galaxy A36's, One UI on
+# Android 17, out/samcam_a36_pull) over the image's, as the other systems' sets give A phones samcam_a.tar. The
+# image's camera is the S26 Ultra's, and on an A phone's sensors it died at launch in its own tables (A17 48f7d45e:
+# "RESOLUTION_4080X3060_60FPS is not registered"; earlier 1010d28b and 911eea3a, each patched around below). The
+# set's samcam_a_oneui.tar holds SamsungCamera/ (the APK as Samsung signed it, the image's own signer, and in
+# lib/arm64 the five libraries of its 83 that the image lacks); the whole folder is bound over the image's
+# /system/priv-app/SamsungCamera, so the image's precompiled oat goes too. The camera's own data (made by the
+# image's newer 17.5) is cleared once whenever the camera changes. ONEOS_ONEUI_A_CAMERA=0 keeps the image's.
+ONEUI_A_CAMERA=0
+OAC_TAR="$STAGE/samcam_a_oneui.tar"
+OAC_DIR="$STAGE/samcam_a_oneui"
+OAC_DST="$ROOTFS/system/priv-app/SamsungCamera"
+if grep -q '^ro.build.version.oneui=' "$ROOTFS/system/build.prop" 2>/dev/null && [ "${ONEOS_ONEUI_A_CAMERA:-1}" = 1 ] &&
+   [ -f "$OAC_TAR" ] && [ ! -L "$OAC_TAR" ] && [ -d "$OAC_DST" ] && [ ! -L "$OAC_DST" ] && [ ! -L "$OAC_DIR" ]; then
+    case "$(getprop ro.product.model)" in
+        SM-A*|SM-M*)
+            st="$(stat -c %s:%Y "$OAC_TAR")"
+            if [ "$(cat "$OAC_DIR/.from_tar" 2>/dev/null)" != "$st" ]; then
+                rm -rf "$OAC_DIR" && mkdir -p "$OAC_DIR" && $BB tar -xf "$OAC_TAR" -C "$OAC_DIR" && echo "$st" > "$OAC_DIR/.from_tar" ||
+                    echo "Camera: samcam_a_oneui.tar did not unpack"
+            fi
+            OAC_SRC="$OAC_DIR/SamsungCamera"
+            if [ -f "$OAC_SRC/SamsungCamera.apk" ] && [ ! -L "$OAC_SRC" ]; then
+                chown -R 0:0 "$OAC_SRC"; chmod 755 "$OAC_SRC" "$OAC_SRC/lib" "$OAC_SRC/lib/arm64" 2>/dev/null
+                chmod 644 "$OAC_SRC/SamsungCamera.apk" "$OAC_SRC"/lib/arm64/*.so 2>/dev/null
+                $BB chcon -R u:object_r:system_file:s0 "$OAC_SRC" 2>/dev/null || true
+                $BB umount -l "$OAC_DST" 2>/dev/null || true
+                if $BB mount --bind "$OAC_SRC" "$OAC_DST" && $BB mount -o remount,bind,ro "$OAC_DST" 2>/dev/null; [ -f "$OAC_DST/lib/arm64/libFoodDetector.camera.samsung.so" ]; then
+                    ONEUI_A_CAMERA=1
+                    OAC_ID="a36:$(sha256sum "$OAC_SRC/SamsungCamera.apk" | cut -c1-16)"
+                    if [ "$(cat "$STAGE/data/oneos_camera_variant" 2>/dev/null)" != "$OAC_ID" ]; then
+                        for d in "$STAGE/data/user/0/com.sec.android.app.camera" "$STAGE/data/user_de/0/com.sec.android.app.camera"; do
+                            [ -d "$d" ] && [ ! -L "$d" ] && rm -rf "${d:?}"/shared_prefs "${d:?}"/databases "${d:?}"/files "${d:?}"/cache 2>/dev/null
+                        done
+                        echo "$OAC_ID" > "$STAGE/data/oneos_camera_variant"
+                        echo "Camera: the camera's data cleared (another camera than last session)"
+                    fi
+                    echo "Camera: the A series' Samsung Camera (the Galaxy A36's) bound over the image's for this $(getprop ro.product.model)"
+                else
+                    $BB umount -l "$OAC_DST" 2>/dev/null
+                    echo "!!! Camera: the A series' camera could not be bound; the image's own stays"
+                fi
+            fi ;;
+    esac
+fi
+if [ $ONEUI_A_CAMERA = 0 ] && [ -f "$STAGE/data/oneos_camera_variant" ] && grep -q '^ro.build.version.oneui=' "$ROOTFS/system/build.prop" 2>/dev/null; then
+    # Back to the image's camera after an A-series one: its data goes once the same way.
+    for d in "$STAGE/data/user/0/com.sec.android.app.camera" "$STAGE/data/user_de/0/com.sec.android.app.camera"; do
+        [ -d "$d" ] && [ ! -L "$d" ] && rm -rf "${d:?}"/shared_prefs "${d:?}"/databases "${d:?}"/files "${d:?}"/cache 2>/dev/null
+    done
+    rm -f "$STAGE/data/oneos_camera_variant"
+fi
 # One UI images (0.5.22): the image's software features on the phone's hardware features, and
 # the phone's camera configuration (A36 run 12: the S26 Ultra's camera app read the S26 Ultra's
 # /system/cameradata and crashed on "There is no capability for : 20"; the A36 has other cameras).
@@ -6626,11 +6904,22 @@ fi
 # - $STAGE/data/oneos_cameradata: a copy of One UI's /system/cameradata.
 rm -rf "$STAGE/data/oneos_cameradata" "$STAGE/data/oneos_floating_feature.xml" "$STAGE/data/oneos_system_floating_feature.xml"
 if grep -q '^ro.build.version.oneui=' "$ROOTFS/system/build.prop" 2>/dev/null && [ -d "$STAGE/data" ]; then
-    if [ -d /system/cameradata ] && cp -a /system/cameradata "$STAGE/data/oneos_cameradata" 2>/dev/null; then
+    # 0.5.32: not on the phone the image was built from (S26 Ultra 9.0 host, ed9a5fe0: its One UI 9.0 cameradata
+    # under the image's 9.5 camera, "get : argument is invalid - 90500" in CameraApplication.onCreate): there the
+    # image's own cameradata is the camera's, of its own version.
+    IMG_MODEL=$(sed -n 's/^ro.product.system.model=//p' "$ROOTFS/system/build.prop" 2>/dev/null | head -n 1)
+    HOST_MODEL=$(getprop ro.product.model)
+    CAMDATA_OWN=0
+    case "$IMG_MODEL:$HOST_MODEL" in
+        SM-?????*:SM-?????*) [ "$(echo "$IMG_MODEL" | cut -c1-7)" = "$(echo "$HOST_MODEL" | cut -c1-7)" ] && CAMDATA_OWN=1 ;;
+    esac
+    [ $CAMDATA_OWN = 1 ] && echo "Camera: this $HOST_MODEL is the image's own model ($IMG_MODEL): the image's /system/cameradata stays"
+    if [ $CAMDATA_OWN = 0 ] && [ -d /system/cameradata ] && cp -a /system/cameradata "$STAGE/data/oneos_cameradata" 2>/dev/null; then
         # Shooting modes the image's camera app has no table entry for (One UI 9.5's, on the A36:
         # "There is no matched ShootingModeIdByName with : LIVE_FOCUS_LITE", run 13) are left empty,
         # the answer for "no such mode"; MACRO's mode entry is turned off with it.
         cf="$STAGE/data/oneos_cameradata/camera-feature.xml"
+        # Both only for the image's own (S26 Ultra) camera: the A series' one (above) knows the A phones' modes and sizes.
         [ -f "$cf" ] && sed -i \
             -e 's/="LIVE_FOCUS"/=""/g' \
             -e 's/="LIVE_FOCUS_LITE"/=""/g' \
@@ -6645,7 +6934,7 @@ if grep -q '^ro.build.version.oneui=' "$ROOTFS/system/build.prop" 2>/dev/null &&
         # RESOLUTION_* of its resolution table; 11-20 report 1010d28b, A17: "getResolution : argument is invalid
         # - 3408x2556", the camera never opened) become the known size of the same shape, the largest not
         # bigger (else the smallest bigger one). Only for the S948B image's app (ro.product.system.model).
-        if [ -f "$cf" ] && grep -q '^ro.product.system.model=SM-S948' "$ROOTFS/system/build.prop" 2>/dev/null; then
+        if [ -f "$cf" ] && [ "$ONEUI_A_CAMERA" = 0 ] && grep -q '^ro.product.system.model=SM-S948' "$ROOTFS/system/build.prop" 2>/dev/null; then
             CAMRES="3264x2448 2560x1920 2048x1536 1600x1200 1280x960 640x480 1920x1080 1280x720 352x288 320x240 176x144 3264x1836 2560x1440 2048x1152 2592x1944 1440x1080 4128x3096 4128x2322 1024x576 3840x2160 5312x2988 3984x2988 2976x2976 1072x1072 2448x2448 4608x2592 1440x1440 1920x1440 2592x1458 3344x3344 1936x1936 1920x1920 1088x1088 2576x1932 960x960 4608x3456 4032x3024 4032x2268 2880x2160 3024x3024 2160x2160 1066x800 800x800 1616x1212 1600x900 720x720 3456x3456 1536x1536 720x540 540x540 3088x3088 4032x1960 3264x1592 2224x1080 3648x2052 3648x2736 2736x2736 4032x1908 3968x2232 3968x1880 2280x1080 4608x2184 2288x1080 3216x1528 2640x1288 3216x1808 2640x1488 2944x2208 2640x1980 2208x2208 1968x1968 4032x1800 4032x1816 3968x1784 2400x1080 3216x1448 4000x1800 4000x2252 4000x3000 2992x2992 9248x6936 7680x4320 12000x9000 7296x5472 5888x4416 3840x1644 1920x824 7680x3296 4000x1868 3968x1852 3216x1500 2320x1080 8160x6120 3968x1832 2336x1080 4000x1844 3216x1488 4000x1848 3392x1564 3392x1580 3392x1908 3392x2544 2544x2544 16320x12240 3840x1648 7936x4464 5472x5472 7936x3700 7936x3664 7936x3572 8160x4592 6112x6112 8160x3808 8160x3768 9248x5204 6928x6928 9248x4312 9248x4268 9248x4164 12000x6752 8992x8992 12000x5596 12000x5540 12000x5400 16320x9180 12240x12240 16320x7612 16320x7532 7680x3248 3840x1624 2560x1080 1712x720 7680x2784 3840x1392 2976x1080 1984x720 1920x808 1920x696 4000x1716 3968x1700 4000x1688 4000x1456 3840x2880 5712x4284 5712x3212 4272x4272 5712x2636 7680x2160 3968x1116 3328x936 2240x630 1920x540 4000x1124 3056x1412 3056x1720 3056x2296 2288x2288 1920x2160 3840x4320 4640x3480 4640x2612 3472x3472 4640x2142 4640x1988 3008x2256 3008x1692 2256x2256 3008x1388 4080x3060 960x540"
             if $BB awk -v known="$CAMRES" '
                 BEGIN { n = split(known, k, " "); for (i = 1; i <= n; i++) ok[k[i]] = 1 }
@@ -7486,6 +7775,103 @@ if [ -f "$STAGE/data/oneos_root/enabled" ]; then
 fi
 if [ -d "$STAGE/data/oneos_ksu/modules" ]; then
     BB=$BB /system/bin/sh "$STAGE/tmp/guest_modules.sh" || echo "Modules: not applied (see above)"
+fi
+
+# Debloater (0.5.32): the apps the user ticked on the system's Debloat screen, hidden the way the One UI
+# apps above are (a read-only tmpfs over the app's folder), so the guest boots without them. The image is
+# never changed: Restore all in the app empties the list and the next start shows every app again. The app
+# writes $STAGE/debloat.list through root's debloat verb ("<package><TAB><folder>" per line, folders as the
+# image names them, checked there and again here). Only an app's own folder is hidden: one under an app,
+# priv-app, del-app, del-app-pre or data-app folder, every part of the path a real folder of the image (no
+# link), holding 1 to 4 APKs; never a shared folder such as product/overlay. This runs before the check
+# below that nothing landed on One UI's own partitions. ONEOS_DEBLOAT=0 skips it for a session.
+debloat_path_ok() {
+    case "$1" in /*) ;; *) return 1 ;; esac
+    [ ${#1} -le 200 ] || return 1
+    case "$1" in *[!A-Za-z0-9._/+-]*|*//*|*/.*|*/) return 1 ;; esac
+    case "$1" in */app/?*|*/priv-app/?*|*/del-app/?*|*/del-app-pre/?*|*/data-app/?*) ;; *) return 1 ;; esac
+    _top=${1#/}; case "${_top%%/*}" in data|dev|proc|sys|mnt|storage|apex|vendor|odm|cache|metadata|sdcard|debug_ramdisk) return 1 ;; esac
+    case "${1##*/}" in app|priv-app|del-app|del-app-pre|data-app|overlay|framework|lib|lib64|bin|etc|apex|system|product|system_ext|vendor) return 1 ;; esac
+    return 0
+}
+debloat_real_dirs() { # <folder>: every part of $ROOTFS<folder> is a folder, none a link
+    _d=$ROOTFS
+    _rest=${1#/}
+    while [ -n "$_rest" ]; do
+        _c=${_rest%%/*}
+        [ "$_c" = "$_rest" ] && _rest='' || _rest=${_rest#*/}
+        _d="$_d/$_c"
+        [ -d "$_d" ] && [ ! -L "$_d" ] || return 1
+    done
+    return 0
+}
+DB_PKGS=''
+if [ -s "$STAGE/debloat.list" ] && [ ! -L "$STAGE/debloat.list" ] && [ "${ONEOS_DEBLOAT:-1}" = 1 ]; then
+    DB_TAB=$(printf '\t')
+    DB_N=0; DB_LISTED=0; DB_ABSENT=0
+    while IFS="$DB_TAB" read -r db_pkg db_path || [ -n "$db_pkg" ]; do
+        [ -n "$db_pkg" ] || continue
+        DB_LISTED=$((DB_LISTED + 1))
+        [ $DB_LISTED -le 600 ] || { echo "Debloat: more than 600 lines, the rest left alone"; break; }
+        case "$db_pkg" in *[!A-Za-z0-9._]*|.*|*.|*..*) echo "Debloat: line $DB_LISTED names no package, left alone"; continue ;; esac
+        if ! debloat_path_ok "$db_path"; then echo "Debloat: '$db_path' ($db_pkg) is not an app's own folder, left alone"; continue; fi
+        db_t=''
+        for db_c in "$db_path" "/system$db_path" "${db_path#/system}"; do
+            debloat_path_ok "$db_c" && debloat_real_dirs "$db_c" && { db_t="$ROOTFS$db_c"; break; }
+        done
+        if [ -z "$db_t" ]; then DB_ABSENT=$((DB_ABSENT + 1)); continue; fi
+        db_apks=$($BB find "$db_t" -maxdepth 2 -name '*.apk' -type f 2>/dev/null | wc -l)
+        if [ "$db_apks" -lt 1 ] || [ "$db_apks" -gt 4 ]; then
+            echo "Debloat: ${db_t#"$ROOTFS"} holds $db_apks APKs, not one app's: left alone"; continue
+        fi
+        if awk -v m="$db_t" '$5 == m { f = 1 } END { exit !f }' /proc/self/mountinfo; then
+            echo "Debloat: ${db_t#"$ROOTFS"} is hidden already"; continue
+        fi
+        if $BB mount -t tmpfs -o ro,size=4k,mode=755 tmpfs "$db_t"; then
+            DB_N=$((DB_N + 1))
+            case " $DB_PKGS " in *" $db_pkg "*) ;; *) DB_PKGS="$DB_PKGS $db_pkg" ;; esac
+        else
+            echo "Debloat: could not hide ${db_t#"$ROOTFS"}"
+        fi
+    done < "$STAGE/debloat.list"
+    echo "Debloat: hid $DB_N app folders ($(echo $DB_PKGS | wc -w) apps) of $DB_LISTED listed; $DB_ABSENT not in this image"
+    [ -z "$DB_PKGS" ] || echo "Debloat: hidden:$DB_PKGS"
+fi
+# Apps shown again (A36 HyperOS, Restore all): HyperOS installs a data-app app once and lists it in
+# data/system/preinstall_packages.xml; one listed there but missing is never installed again ("package had beed
+# uninstalled: ... skip!"), so to it an app the Debloater hid was uninstalled by the user. data/oneos_debloat_hidden
+# keeps the apps the last start hid; each one this start shows again leaves that file and its copies, and HyperOS
+# installs it fresh. Apps the user uninstalled were never hidden by OneOS and stay out.
+DB_PREV="$STAGE/data/oneos_debloat_hidden"
+if [ -f "$DB_PREV" ] && [ ! -L "$DB_PREV" ]; then
+    DB_BACK=''
+    for db_pkg in $(head -c 65536 "$DB_PREV"); do
+        case "$db_pkg" in *[!A-Za-z0-9._]*|.*|*.|*..*) continue ;; esac
+        case " $DB_PKGS " in *" $db_pkg "*) ;; *) DB_BACK="$DB_BACK $db_pkg" ;; esac
+    done
+    if [ -n "$DB_BACK" ]; then
+        DB_FIXED=''
+        for db_x in preinstall_packages.xml preinstall_packages.xml.reservecopy preinstall_packages-backup.xml preinstall_packages.xml.fallback; do
+            db_f="$STAGE/data/system/$db_x"
+            [ -f "$db_f" ] && [ ! -L "$db_f" ] || continue
+            grep -q '<preinstall_packages' "$db_f" 2>/dev/null || continue
+            awk -v back=" $DB_BACK " '/<preinstall_package / && match($0, /name="[^"]*"/) {
+                n = substr($0, RSTART + 6, RLENGTH - 7); if (index(back, " " n " ")) { gone++; next } }
+                { print } END { exit !gone }' "$db_f" > "$db_f.oneos" &&
+                # A new file moved over the old one with its owner, mode and label (A36: writing into
+                # HyperOS's own 0660 file in place: "Operation not permitted").
+                chown "$(stat -c %u:%g "$db_f")" "$db_f.oneos" && chmod "$(stat -c %a "$db_f")" "$db_f.oneos" &&
+                { chcon "$(ls -Zd "$db_f" | awk '{ for (i = 1; i <= NF; i++) if ($i ~ /^u:object_r:/) { print $i; exit } }')" "$db_f.oneos" 2>/dev/null || true; } &&
+                mv -f "$db_f.oneos" "$db_f" && DB_FIXED="$DB_FIXED $db_x"
+            rm -f "$db_f.oneos"
+        done
+        echo "Debloat: shown again:$DB_BACK${DB_FIXED:+ (HyperOS installs them again: taken out of$DB_FIXED)}"
+    fi
+fi
+if [ -n "$DB_PKGS" ]; then
+    echo "$DB_PKGS" > "$DB_PREV" && chmod 0600 "$DB_PREV"
+else
+    rm -f "$DB_PREV"
 fi
 
 # Nothing of the guest on One UI's own partitions (host_part_mounts, top).

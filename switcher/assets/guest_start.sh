@@ -89,12 +89,13 @@ export PATH=/system/bin:/system/xbin
 
 # OneOS: /mnt and /storage came in from the host, and its pass_through,
 # installer, androidwritable, runtime and user views are binds of the phone's
-# real /data/media. Drop them in this (private) namespace before anything in
+# real /data/media (and 0.5.31's read-only One UI view for Bring apps, /mnt/oneos_oneui).
+# Drop them in this (private) namespace before anything in
 # the guest runs; the guest builds its own from its staged /data/media below.
-for m in $(awk '$5 ~ "^/(mnt/(pass_through|installer|androidwritable|runtime|user)|storage)(/|$)" {print $5}' /proc/self/mountinfo | sort -r); do
+for m in $(awk '$5 ~ "^/(mnt/(pass_through|installer|androidwritable|runtime|user|oneos_oneui)|storage)(/|$)" {print $5}' /proc/self/mountinfo | sort -r); do
     $BB umount -l "$m" 2>/dev/null
 done
-left=$(awk '$5 ~ "^/(mnt/(pass_through|installer|androidwritable|runtime|user)|storage)(/|$)"' /proc/self/mountinfo | wc -l)
+left=$(awk '$5 ~ "^/(mnt/(pass_through|installer|androidwritable|runtime|user|oneos_oneui)|storage)(/|$)"' /proc/self/mountinfo | wc -l)
 if [ "$left" != 0 ]; then
     echo "[Pivoted Root] FATAL: $left host storage views still mounted. Not starting the guest."
     exit 1
@@ -820,10 +821,19 @@ elif [ "$LED" != 1 ] && { [ "$usc" != false ] || [ "$force" != true ]; }; then
     # 15 s in a row while the screen is awake and asks for light (a real
     # minimum is a wish, not a dead HAL), and give up after 600 s if the node
     # moves on its own. Healthy systems never see the takeover.
-    echo "$(date +%T) brightness bridge: watching $BL (useSurfaceControl=${usc:-not read}, force_anyway=${force:-not read}; takes over after 15 s of a dead node)"
+    # 0.5.34: or when the HAL refuses the guest's brightness outright. HyperOS on the Galaxy A16 4G (report
+    # f036b5fa, "brightness not fixed"): Samsung's lights HAL answered every MiuiLightsService.setBrightness
+    # with UnsupportedOperationException ("Failed issuing setLightState", 50 times), the node stayed at the
+    # host's last level (not 0), and after 600 s the watch gave the panel to a HAL that never wrote it.
+    # Three such refusals take the node over too.
+    echo "$(date +%T) brightness bridge: watching $BL (useSurfaceControl=${usc:-not read}, force_anyway=${force:-not read}; takes over after 15 s of a dead node or 3 refusals of the lights HAL)"
+    rm -f /data/oneos_bl_refused
+    ( timeout 600 logcat -v brief -T 1 -s LightsService:E 2>/dev/null | grep --line-buffered -F "Failed issuing setLightState" | head -n 3 > /data/oneos_bl_refused ) &
+    RMON=$!
     n=0; i=0
     while [ $i -lt 600 ]; do
         i=$((i + 1)); sleep 1
+        if [ "$(wc -l < /data/oneos_bl_refused 2>/dev/null)" -ge 3 ] 2>/dev/null; then n=15; refused=1; break; fi
         [ "$(cat $BL/brightness 2>/dev/null)" = 0 ] || { n=0; continue; }
         case "$(dumpsys power 2>/dev/null | sed -n 's/^ *mWakefulness=//p' | head -n 1)" in
             Awake) ;;
@@ -836,11 +846,16 @@ elif [ "$LED" != 1 ] && { [ "$usc" != false ] || [ "$force" != true ]; }; then
         [ "$light" = 1 ] && n=$((n + 1)) || n=0
         [ $n -ge 15 ] && break
     done
+    kill $RMON 2>/dev/null
     if [ $n -lt 15 ]; then
         echo "$(date +%T) brightness bridge: the node moved on its own after $i s; leaving it to the lights HAL"
         exit 0
     fi
-    echo "$(date +%T) brightness bridge: the lights HAL does not reach the panel (node 0, awake and asking for light for 15 s); taking the node over"
+    if [ "${refused:-0}" = 1 ]; then
+        echo "$(date +%T) brightness bridge: the lights HAL refuses the guest's brightness (3x Failed issuing setLightState after $i s); taking the node over"
+    else
+        echo "$(date +%T) brightness bridge: the lights HAL does not reach the panel (node 0, awake and asking for light for 15 s); taking the node over"
+    fi
 fi
 # A level scale when the range ends above 1 (ColorOS, OxygenOS); else 0..1.
 SCALE=$(echo "${lo:-x} ${hi:-x} ${nm:-x}" | awk '{ t = $3; if (t !~ /^[0-9.]+$/) t = $2
@@ -2111,7 +2126,71 @@ if [ "${ONEOS_GUEST_SAMSUNG_AUDIO:-1}" = 1 ] && [ -d /sys/devices/virtual/audio/
         done
     ' </dev/null >/dev/null 2>&1 &
 fi
+# Stereo speakers (0.5.33; S24 FE ColorOS 0.5.32, tester: "sound is not stereo"): on Galaxy phones whose second
+# speaker is the earpiece, One UI's own audioserver powers that speaker's amplifier for media
+# (libaudioflinger's AudioFlinger::DualSpkControl::setAmpPower -> the stream key
+# l_dual_speaker_amp_left_power_enable=true/false on the speaker output; it starts at false). A guest's
+# audioserver has no DualSpkControl, so the earpiece amplifier stayed off and media played from the bottom
+# speaker only (the output itself is 2-channel). Sent here to every guest output on the speaker once the
+# guest's audio is up, and again whenever the HAL opens a speaker output or someone turns the amplifier off;
+# never during a call (One UI's own rule takes the earpiece speaker out by the proximity sensor then). Only
+# where the vendor audio libraries know the key (the S24 FE's Exynos HAL does; the A36's does not).
+# ONEOS_GUEST_DUAL_SPK=0 leaves it out. Log: /data/oneos_sec_audio.log.
+if [ "${ONEOS_GUEST_DUAL_SPK:-1}" = 1 ] && [ -f /data/oneos_edm_stub.dex ]; then
+    ONEOS_BB="$BB" $BB sh -c '
+        BB=$ONEOS_BB
+        log() { echo "$(date +%T) stereo: $*" >> /data/oneos_sec_audio.log; }
+        K=l_dual_speaker_amp_left_power_enable
+        lib=$($BB grep -l -s "$K" /vendor/lib64/hw/*.so /vendor/lib64/*.so 2>/dev/null | head -n 1)
+        [ -n "$lib" ] || { log "the vendor audio libraries have no $K: not needed"; exit 0; }
+        i=0
+        while [ "$(getprop service.bootanim.exit)" != 1 ] && [ $i -lt 600 ]; do sleep 1; i=$((i + 1)); done
+        send() {
+            cs=$(dumpsys telephony.registry 2>/dev/null | $BB grep -m1 -o "mCallState=[0-9]*" | $BB grep -o "[0-9]*$")
+            [ "${cs:-0}" = 0 ] || { log "$1: in a call, left alone"; return 0; }
+            ios=$(dumpsys media.audio_flinger 2>/dev/null | $BB awk "
+                /^Output thread / { io = \"\"; if (match(\$0, /name AudioOut_[0-9A-Fa-f]+/)) io = substr(\$0, RSTART + 14, RLENGTH - 14); next }
+                /^ *Output devices:/ && io != \"\" { if (\$0 ~ /SPEAKER/) print io; io = \"\" }" | while read -r h; do echo $((0x$h)); done | $BB sort -un | $BB head -n 16 | $BB tr "\n" "," )
+            ios=${ios%,}
+            [ -n "$ios" ] || { log "$1: no speaker output yet"; return 1; }
+            r=$(/system/bin/sh /data/oneos_genv.sh /system/bin/env CLASSPATH=/data/oneos_edm_stub.dex /system/bin/app_process /system/bin OneOSAudioParam --io "$ios" "$K=true" 2>&1 | tail -n 1)
+            log "$(echo "$1: $r" | cut -c1-280)"
+        }
+        log "earpiece speaker amplifier key in ${lib##*/}"
+        n=0
+        i=0
+        until send start; do sleep 3; i=$((i + 1)); [ $i -lt 40 ] || break; done
+        last=0
+        # 0.5.34: also at every start of playback on the speaker. DualSpkControl in One UI sends the key to every
+        # speaker output each time sound starts (true) and stops (false) (S24 FE report 8d036182, One UI at
+        # 16:52:10 and 16:52:21); sent once at the start, stereo came and went with the state the HAL kept
+        # (tester: "sometimes stereo works"). The HAL logs the speaker route as the stream starts.
+        logcat -v brief -T 1 -s audio_hw_primary:D audio_hw_playback:D audio_hw_route:I sec_audio_hw:V AHAL:D 2>/dev/null | while IFS= read -r l; do
+            pause=1
+            case "$l" in
+                *"$K=false"*) why="amplifier turned off" ;;
+                *open_output_stream*"devices(0x2)"*) why="speaker output opened" ;;
+                *"routes to device(speaker"*) why="playback on the speaker"; pause=0 ;;
+                *) continue ;;
+            esac
+            now=$($BB date +%s)
+            [ $((now - last)) -ge 2 ] || continue
+            last=$now
+            [ $pause = 0 ] || sleep 1
+            if [ "$why" = "playback on the speaker" ]; then send "$why" >/dev/null; n=$((n + 1)); [ $((n % 50)) = 1 ] && log "playback on the speaker: sent $n times so far"; else send "$why"; fi
+        done
+    ' </dev/null >/dev/null 2>&1 &
+fi
 DT2W=${ONEOS_GUEST_DT2W:-1}
+# 0.5.32: not in a One UI image. Its own input service (SemInputDeviceManagerService) already writes the panel's
+# display state through Samsung's sysinput HAL, as One UI does (S24+ One UI 9.5 report 34d6923c: enabled@1,0 and
+# @1,1 from the guest at every screen off), so the keeper was a second writer to the same node: Galaxy A17 5G
+# report cea77895, kernel panic "list_add corruption" in sec_input_enable_device from the keeper's busybox write,
+# 17 min into a One UI 9.5 session. ONEOS_GUEST_DT2W=1 still forces it.
+if [ "${ONEOS_GUEST_DT2W:-}" != 1 ] && grep -q '^ro.build.version.oneui=' /system/build.prop 2>/dev/null; then
+    DT2W=0
+    echo "$(date +%T) not started: a One UI image wakes on double tap itself (its input service drives the touch IC)" >> /data/dt2w.log
+fi
 if [ "$DT2W" = 1 ] && command -v getevent >/dev/null 2>&1 && { [ -w /sys/class/sec/tsp/enabled ] || [ -w /sys/class/sec/tsp1/enabled ]; }; then
     rm -f /data/oneos_dt2w_armed.* /data/oneos_dt2w_*.fifo /data/oneos_dt2w_aod* /data/oneos_dt2w_lid*
     ONEOS_BB="$BB" $BB sh -c '
