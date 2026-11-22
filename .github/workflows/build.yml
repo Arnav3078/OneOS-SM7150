@@ -1,10 +1,10 @@
-name: Build OneOS for M51
+name: Build OneOS
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "a71" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "a71" ]
   workflow_dispatch:
 
 permissions:
