@@ -495,7 +495,7 @@ class OneiosTest {
 
     // --- Releases ----------------------------------------------------------------
 
-    private fun release(vararg assets: Pair<String, Long>, tag: String = "v0.1.0", host: String = "https://github.com/akshaynexus/OneiOS") = """
+    private fun release(vararg assets: Pair<String, Long>, tag: String = "v0.1.0", host: String = "https://github.com/Arnav3078/OneOS-SM7150") = """
         {"tag_name": "$tag", "name": "OneiOS $tag", "draft": false, "assets": [
           ${assets.joinToString(",") { (n, s) -> """{"name": "$n", "size": $s, "browser_download_url": "$host/releases/download/$tag/$n"}""" }}
         ]}
@@ -508,8 +508,8 @@ class OneiosTest {
         assertEquals("v0.1.0", r.tag)
         assertEquals("0.1.0", r.version)
         assertEquals(1234L, r.assetBytes)
-        assertEquals("https://github.com/akshaynexus/OneiOS/releases/download/v0.1.0/$name", r.assetUrl)
-        assertEquals("https://github.com/akshaynexus/OneiOS/releases/download/v0.1.0/$name.sha256", r.sha256Url)
+        assertEquals("https://github.com/Arnav3078/OneOS-SM7150/releases/download/v0.1.0/$name", r.assetUrl)
+        assertEquals("https://github.com/Arnav3078/OneOS-SM7150/releases/download/v0.1.0/$name.sha256", r.sha256Url)
     }
 
     @Test
@@ -530,9 +530,9 @@ class OneiosTest {
 
     @Test
     fun theLatestOrAPinnedTag() {
-        assertEquals("https://api.github.com/repos/akshaynexus/OneiOS/releases/latest", OneiosReleases.apiUrl(null))
+        assertEquals("https://api.github.com/repos/Arnav3078/OneOS-SM7150/releases/latest", OneiosReleases.apiUrl(null))
         assertEquals(OneiosReleases.LATEST_API, OneiosReleases.apiUrl("  "))
-        assertEquals("https://api.github.com/repos/akshaynexus/OneiOS/releases/tags/v0.1.0", OneiosReleases.apiUrl("v0.1.0"))
+        assertEquals("https://api.github.com/repos/Arnav3078/OneOS-SM7150/releases/tags/v0.1.0", OneiosReleases.apiUrl("v0.1.0"))
         for (bad in listOf("../x", "a/b", "a b", "v1?x=1", "-v1")) {
             assertTrue(bad, runCatching { OneiosReleases.apiUrl(bad) }.isFailure)
         }
@@ -651,15 +651,15 @@ class OneiosTest {
         val (fetch, fk) = OneiosTool.kernelcacheFetchRequest(s)
         assertEquals("fetch", fetch)
         assertEquals(
-            mapOf("profile" to "$s/runtime/lib/profiles/ios-27.0.1-iPhone18-2.toml", "indir" to "$s/make-kernel/inputs", "only" to listOf("kernelcache"), "resume" to true),
+            mapOf("profile" to "$s/runtime/lib/profiles/ios-16.7-iphonex-sm7150.toml", "indir" to "$s/make-kernel/inputs", "only" to listOf("kernelcache"), "resume" to true),
             fk,
         )
         val (im4p, ik) = OneiosTool.kernelcacheDecodeRequest(s)
         assertEquals("im4p", im4p)
-        assertEquals(mapOf("in" to "$s/make-kernel/inputs/kernelcache.release.v54", "out" to "$s/make-kernel/kernelcache.macho"), ik)
+        assertEquals(mapOf("in" to "$s/make-kernel/inputs/kernelcache.release.d221", "out" to "$s/make-kernel/kernelcache.macho"), ik)
         // The line the app writes: the list and the flag as JSON, not as text.
         assertEquals(
-            """{"id":"3","cmd":"fetch","profile":"$s/runtime/lib/profiles/ios-27.0.1-iPhone18-2.toml","indir":"$s/make-kernel/inputs","only":["kernelcache"],"resume":true}""" + "\n",
+            """{"id":"3","cmd":"fetch","profile":"$s/runtime/lib/profiles/ios-16.7-iphonex-sm7150.toml","indir":"$s/make-kernel/inputs","only":["kernelcache"],"resume":true}""" + "\n",
             OneiosTool.request("3", fetch, fk),
         )
         // The decoded file the build reads is the one kbcache puts in kb/.
@@ -681,14 +681,14 @@ class OneiosTest {
         assertEquals("make-image", cmd)
         assertEquals(
             mapOf(
-                "profile" to "$s/runtime/lib/profiles/ios-27.0.1-iPhone18-2.toml",
+                "profile" to "$s/runtime/lib/profiles/ios-16.7-iphonex-sm7150.toml",
                 "indir" to "$s/make/inputs", "out" to "$s/image.new", "sums_list" to "$s/image.new.sha256", "ids_list" to "$s/image.new.ids",
                 "work" to "$s/make", "resume" to true,
             ),
             keys,
         )
         assertEquals(
-            """{"id":"m","cmd":"make-image","profile":"$s/runtime/lib/profiles/ios-27.0.1-iPhone18-2.toml","indir":"$s/make/inputs","out":"$s/image.new","sums_list":"$s/image.new.sha256","ids_list":"$s/image.new.ids","work":"$s/make","resume":true}""" + "\n",
+            """{"id":"m","cmd":"make-image","profile":"$s/runtime/lib/profiles/ios-16.7-iphonex-sm7150.toml","indir":"$s/make/inputs","out":"$s/image.new","sums_list":"$s/image.new.sha256","ids_list":"$s/image.new.ids","work":"$s/make","resume":true}""" + "\n",
             OneiosTool.request("m", cmd, keys),
         )
         // The room said before it starts covers the profile's need_gib and the download is the profile's members.

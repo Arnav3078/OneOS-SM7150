@@ -649,7 +649,7 @@ class OneiosScriptTest {
         assertOk(f.verb(OneiosRoot.Verb.BEGIN, listOf("runtime")))
         assertOk(f.receive("runtime", "runtime.json", "{}".toByteArray()))
         assertOk(f.receive("runtime", "bin/xnuhost", ELF, "0755"))
-        assertOk(f.receive("runtime", "lib/profiles/ios-27.0.1-iPhone18-2.toml", profile!!.readBytes()))
+        assertOk(f.receive("runtime", "lib/profiles/ios-16.7-iphonex-sm7150.toml", profile!!.readBytes()))
         assertOk(f.verb(OneiosRoot.Verb.FINISH, listOf("runtime", "3", "0.1.0", "1", "bin/xnuhost", "1", "0", "none", "none", "none")))
         val kb = com.fahadali.oneos.core.model.OneiosKb.parse(File(Shipped.fullAssets, "kb/kb.json").readText()).getOrThrow()
         val assets = OneiosKbFiles.NAMES.filter { it != "kernelcache.macho" }.associateWith { File(Shipped.fullAssets, "kb/$it").readBytes() }

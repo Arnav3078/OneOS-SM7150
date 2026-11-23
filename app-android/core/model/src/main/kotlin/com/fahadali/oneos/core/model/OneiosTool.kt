@@ -31,18 +31,18 @@ object OneiosTool {
     }
 
     /**
-     * The IPSW profile the staged runtime carries (OneiOS's `profiles/ios-27.0.1-iPhone18,2.toml`, packed as
-     * `lib/profiles/` with the comma as a dash): the members' names, sizes and hashes the tool's `fetch` checks.
+     * The IPSW profile the staged runtime carries (OneiOS's `profiles/ios-16.7-iphonex-sm7150.toml`, packed as
+     * `lib/profiles/`): the members' names, sizes and hashes the tool's `fetch` checks.
      * Relative to the stage.
      */
-    const val IPSW_PROFILE = "runtime/lib/profiles/ios-27.0.1-iPhone18-2.toml"
+    const val IPSW_PROFILE = "runtime/lib/profiles/ios-16.7-iphonex-sm7150.toml"
 
     /** The kernel update's work folder (stage-relative): the fetched IM4P, its decode, the build's `out`. */
     const val KERNEL_WORK = "make-kernel"
 
     /** The profile's kernelcache member: its role (`fetch`'s `only`) and its file name in `indir`. */
     const val KERNELCACHE_ROLE = "kernelcache"
-    const val KERNELCACHE_MEMBER = "kernelcache.release.v54"
+    const val KERNELCACHE_MEMBER = "kernelcache.release.d221"
 
     /**
      * The kernel update's download (docs/oneios.md, "Kernel updates"): only Apple's kernelcache member of the

@@ -75,6 +75,17 @@ jobs:
           cp "$FULL_APK" "dist/OneiOS-SM7150-full-debug.apk"
           cp switcher/assets/guest_manager.apk "dist/guest_manager.apk"
 
+          # Package SM7150 OneiOS Runtime package
+          mkdir -p runtime_pkg
+          curl -sL https://github.com/akshaynexus/OneiOS/releases/download/v0.1.18/oneios-runtime-0.1.18-arm64.tar.zst | tar --zstd -C runtime_pkg -xf -
+          mkdir -p runtime_pkg/lib/profiles
+          cp profiles/ios-16.7-iphonex-sm7150.toml runtime_pkg/lib/profiles/
+          cp profiles/host-galaxy-m51-sm7150.toml runtime_pkg/lib/profiles/
+          cp profiles/host-galaxy-a71-sm7150.toml runtime_pkg/lib/profiles/
+          python3 scripts/package-sm7150-runtime.py runtime_pkg
+          tar -C runtime_pkg -cf - . | zstd -19 -T0 > dist/oneios-runtime-0.1.18-arm64.tar.zst
+          sha256sum dist/oneios-runtime-0.1.18-arm64.tar.zst | awk '{print $1 "  oneios-runtime-0.1.18-arm64.tar.zst"}' > dist/oneios-runtime-0.1.18-arm64.tar.zst.sha256
+
       - name: Upload Debug APKs
         uses: actions/upload-artifact@v4
         if: always()

@@ -488,7 +488,7 @@ data class OneiosRelease(
  * with `<that name>.sha256` beside it. The latest release, or a pinned tag.
  */
 object OneiosReleases {
-    const val REPO = "akshaynexus/OneiOS"
+    const val REPO = "Arnav3078/OneOS-SM7150"
     const val PAGE_URL = "https://github.com/$REPO/releases"
     const val LATEST_API = "https://api.github.com/repos/$REPO/releases/latest"
     private const val DOWNLOAD_PREFIX = "https://github.com/$REPO/releases/download/"
