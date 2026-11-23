@@ -58,6 +58,10 @@ def update_runtime_manifest(runtime_dir: Path) -> Path:
     files_list.sort(key=lambda x: x["path"])
     data["files"] = files_list
 
+    # Ensure staged kernel profile matches iOS 16 profile
+    if "kernel" in data and isinstance(data["kernel"], dict):
+        data["kernel"]["profile"] = "ios-16.7.10-20H350"
+
     with open(runtime_json_path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
         f.write("\n")

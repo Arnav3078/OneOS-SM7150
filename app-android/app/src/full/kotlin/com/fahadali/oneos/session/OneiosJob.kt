@@ -407,7 +407,10 @@ object OneiosJob : BackgroundJob<OneiosJob.State>(State(), "oneos-oneios") {
     private fun stageRelease(app: Context, tag: String?, unless: String?): Pair<OneiosRelease, String?> {
         val t = tag?.trim()?.takeIf { it.isNotEmpty() }
         if (t != null && !OneiosReleases.validTag(t)) throw Failed("'$t' is not a release tag")
-        val api = http(OneiosReleases.apiUrl(t), accept = "application/vnd.github+json")
+        var api = http(OneiosReleases.apiUrl(t), accept = "application/vnd.github+json")
+        if (api.first == 404 && t == null) {
+            api = http("https://api.github.com/repos/${OneiosReleases.REPO}/releases?per_page=1", accept = "application/vnd.github+json")
+        }
         if (api.first == 404) throw Failed(OneiosReleases.noRelease(t))
         if (api.first != 200) throw Failed("GitHub answered ${api.first} for the release")
         val release = OneiosReleases.parse(api.second.toString(Charsets.UTF_8)).getOrElse { throw Failed(it.message ?: "no runtime in the release") }
@@ -474,7 +477,10 @@ object OneiosJob : BackgroundJob<OneiosJob.State>(State(), "oneos-oneios") {
     }
 
     private fun checkKernelNow(app: Context): String {
-        val api = http(OneiosReleases.apiUrl(null), accept = "application/vnd.github+json")
+        var api = http(OneiosReleases.apiUrl(null), accept = "application/vnd.github+json")
+        if (api.first == 404) {
+            api = http("https://api.github.com/repos/${OneiosReleases.REPO}/releases?per_page=1", accept = "application/vnd.github+json")
+        }
         if (api.first != 200) throw Failed("GitHub answered ${api.first} for the latest release")
         val release = OneiosReleases.parse(api.second.toString(Charsets.UTF_8)).getOrElse { throw Failed(it.message ?: "no runtime in the release") }
         val shaAnswer = http(release.sha256Url)

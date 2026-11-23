@@ -521,7 +521,8 @@ object OneiosReleases {
      * Only assets of this repository's own releases are taken.
      */
     fun parse(text: String): Result<OneiosRelease> = runCatching {
-        val root = JsonRead.parse(text) as? Map<*, *> ?: error("the release answer is not a JSON object")
+        val parsed = JsonRead.parse(text)
+        val root = parsed as? Map<*, *> ?: (parsed as? List<*>)?.firstOrNull() as? Map<*, *> ?: error("the release answer is not a JSON object")
         val tag = root["tag_name"] as? String ?: error("the release answer names no tag")
         if (!validTag(tag)) error("release tag '${tag.take(40)}'")
         val assets = (root["assets"] as? List<*>).orEmpty().mapNotNull { it as? Map<*, *> }

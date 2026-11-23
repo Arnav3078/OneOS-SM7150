@@ -42,7 +42,7 @@ object OneiosTool {
 
     /** The profile's kernelcache member: its role (`fetch`'s `only`) and its file name in `indir`. */
     const val KERNELCACHE_ROLE = "kernelcache"
-    const val KERNELCACHE_MEMBER = "kernelcache.release.d221"
+    const val KERNELCACHE_MEMBER = "kernelcache.release.iphone10b"
 
     /**
      * The kernel update's download (docs/oneios.md, "Kernel updates"): only Apple's kernelcache member of the

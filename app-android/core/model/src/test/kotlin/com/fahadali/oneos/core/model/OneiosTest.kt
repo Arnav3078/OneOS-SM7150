@@ -656,7 +656,7 @@ class OneiosTest {
         )
         val (im4p, ik) = OneiosTool.kernelcacheDecodeRequest(s)
         assertEquals("im4p", im4p)
-        assertEquals(mapOf("in" to "$s/make-kernel/inputs/kernelcache.release.d221", "out" to "$s/make-kernel/kernelcache.macho"), ik)
+        assertEquals(mapOf("in" to "$s/make-kernel/inputs/kernelcache.release.iphone10b", "out" to "$s/make-kernel/kernelcache.macho"), ik)
         // The line the app writes: the list and the flag as JSON, not as text.
         assertEquals(
             """{"id":"3","cmd":"fetch","profile":"$s/runtime/lib/profiles/ios-16.7-iphonex-sm7150.toml","indir":"$s/make-kernel/inputs","only":["kernelcache"],"resume":true}""" + "\n",

@@ -6,6 +6,8 @@
 # It does NOT use ARMv8.3 Pointer Authentication Codes (PAC / arm64e), allowing native
 # userland CPU execution on the Kryo 470 cores of the Snapdragon 730G without SIGILL.
 
+schema = 1
+
 [os]
 name = "ios-16.7.10-20H350"
 arch = "arm64"
@@ -19,12 +21,37 @@ chip_id = 32789      # 0x8015 (Apple A11)
 board_id = 12        # 0x0C
 
 [ipsw]
-url = "https://updates.cdn-apple.com/2024FallFCS/fullreinstalls/062-81734/6226DCF7-1C34-4C23-8B39-847250DEB218/iPhone10,6_16.7.10_20H350_Restore.ipsw"
-product = "iPhone10,6"
+url = "https://updates.cdn-apple.com/2024SpringFCS/fullrestores/062-47894/28C6D3CB-F9DF-4839-B3BB-E7CA850CEB80/iPhone10,3,iPhone10,6_16.7.10_20H350_Restore.ipsw"
+product = "iPhone10,3,iPhone10,6"
 version = "16.7.10"
 build = "20H350"
 device_class = "d221ap"
-fetch = ["KernelCache", "DeviceTree", "StaticTrustCache"]
+size = 6170940741
+sha256 = "da6b02e0434560b2ca7ca7a120ead3130b5bfc062425bf1edcda976fb1bbba01"
+metadata = "https://api.ipsw.me/v4/device/iPhone10,6?type=ipsw"
+variant = "Customer Erase Install (IPSW)"
+need_gib = 18
+
+[[member]]
+role = "os"
+component = "OS"
+path = "087-86698-032.dmg"
+size = 4730601105
+crc32 = "9ef3df0a"
+
+[[member]]
+role = "app"
+component = "App"
+path = "087-86593-035.dmg"
+size = 2743074816
+crc32 = "c86c06cc"
+
+[[member]]
+role = "kernelcache"
+component = "KernelCache"
+path = "kernelcache.release.iphone10b"
+size = 18201288
+crc32 = "bc62885f"
 
 [display]
 width = 1080

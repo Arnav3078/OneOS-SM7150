@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
   packages: read
 
 jobs:
@@ -92,3 +92,33 @@ jobs:
         with:
           name: OneOS-SM7150-Debug-APKs
           path: dist/
+
+      - name: Create or Update OneiOS SM7150 Pre-Release
+        uses: softprops/action-gh-release@v2
+        if: github.ref == 'refs/heads/Oneios-SM7150' && success()
+        with:
+          tag_name: v0.1.18
+          name: "OneiOS SM7150 Runtime & APK (v0.1.18-pre)"
+          body: |
+            ### OneiOS for Galaxy M51 & Galaxy A71 (Snapdragon 730G / SM7150)
+
+            - **Target Guest OS**: Apple iOS 16.7.10 (Build 20H350) for iPhone X (`iPhone10,6`, ARMv8.2-A non-PAC `arm64`)
+            - **Target Hosts**: Samsung Galaxy M51 (`SM-M515F`) & Samsung Galaxy A71 (`SM-A715F`)
+            - **GPU**: Qualcomm Adreno 618 via `/dev/kgsl-3d0` (Turnip Vulkan / `virtio-gpu-3d`)
+            - **Return Key Chord**: Hold `Volume Down + Power` (or `Volume Up + Volume Down`) for 3 seconds to return to One UI in-place.
+
+            #### Staged Assets
+            - `OneiOS-SM7150-full-debug.apk`: Main OneOS app with OneiOS switching, display unblanking, and hardware chord listeners.
+            - `oneios-runtime-0.1.18-arm64.tar.zst`: Complete OneiOS runtime containing `xnuhost`, `oneios-tool`, and SM7150 profiles.
+            - `oneios-runtime-0.1.18-arm64.tar.zst.sha256`: SHA-256 verification hash.
+          prerelease: true
+          draft: false
+          files: |
+            dist/oneios-runtime-0.1.18-arm64.tar.zst
+            dist/oneios-runtime-0.1.18-arm64.tar.zst.sha256
+            dist/OneiOS-SM7150-full-debug.apk
+            dist/OneOS-SM7150-full-debug.apk
+            dist/OneOS-SM7150-probe-debug.apk
+            dist/guest_manager.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
