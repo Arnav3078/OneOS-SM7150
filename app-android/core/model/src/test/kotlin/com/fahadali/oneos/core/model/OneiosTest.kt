@@ -691,9 +691,9 @@ class OneiosTest {
             """{"id":"m","cmd":"make-image","profile":"$s/runtime/lib/profiles/ios-27.0.1-iPhone18-2.toml","indir":"$s/make/inputs","out":"$s/image.new","sums_list":"$s/image.new.sha256","ids_list":"$s/image.new.ids","work":"$s/make","resume":true}""" + "\n",
             OneiosTool.request("m", cmd, keys),
         )
-        // The room said before it starts covers the profile's need_gib (30 GiB) and the download is the profile's members.
-        assertTrue(OneiosTool.MAKE_IMAGE_ROOM_BYTES > 30L shl 30)
-        assertTrue(OneiosTool.MAKE_IMAGE_DOWNLOAD_BYTES in 11_000_000_000L..12_000_000_000L)
+        // The room said before it starts covers the profile's need_gib and the download is the profile's members.
+        assertTrue(OneiosTool.MAKE_IMAGE_ROOM_BYTES >= 16L shl 30)
+        assertTrue(OneiosTool.MAKE_IMAGE_DOWNLOAD_BYTES in 5_000_000_000L..7_000_000_000L)
     }
 
     // --- The JSON reader -----------------------------------------------------------

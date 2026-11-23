@@ -46,8 +46,8 @@ object OneiosSystem {
     const val GATE_ID = "gate-oneios"
 
     /** The not-this-phone warning's tick (OneiosSwitchConfirm's box; the owner's 2026-11-16 decision). */
-    const val NOT_THIS_PHONE_ACK = "I understand that iOS 27 (OneiOS) is mainly tested and working on the Galaxy S24 Ultra 5G " +
-        "(SM-S928B); on this phone it may be unstable, miss pieces, or not come back to One UI, and that One UI stops while it runs."
+    const val NOT_THIS_PHONE_ACK = "I understand that iOS 16 (OneiOS) is mainly tested and working on Galaxy M51, A71, and Galaxy S24 Ultra; " +
+        "on this phone it may be unstable, miss pieces, or not come back to One UI, and that One UI stops while it runs."
 
     /**
      * What is known of a phone the warning names, by profile id: facts another fork measured on it (OneiOS
@@ -61,8 +61,8 @@ object OneiosSystem {
     )
 
     /** What the experimental tick says. */
-    const val ACK = "I understand that iOS 27 (OneiOS) is experimental, has never been tested on a phone like this one, " +
-        "and that One UI stops while it runs. Volume Up + Volume Down for 3 seconds brings One UI back."
+    const val ACK = "I understand that iOS 16 (OneiOS) is experimental and that One UI stops while it runs. " +
+        "Volume Down + Power (or Volume Up + Volume Down) for 3 seconds brings One UI back."
 
     /**
      * The session modes (docs/oneios.md, "Android takeover"; OneiOS's oneos/interface.md 4a): [MODE_HOSTED], the session

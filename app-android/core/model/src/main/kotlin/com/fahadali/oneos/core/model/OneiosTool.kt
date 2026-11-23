@@ -117,20 +117,17 @@ object OneiosTool {
     )
 
     /**
-     * What Make iOS image downloads from Apple for iOS 27.0.1 (24A446), iPhone18,2: the members the runtime's profile
-     * pins (`ios-27.0.1-iPhone18-2.toml`, the sum of its 13 members' `size`). For the screen before it starts; the
+     * What Make iOS image downloads from Apple for iOS 16 (iPhone X, 20H350):
+     * about 5.8 GB (6,165,698,198 bytes). For the screen before it starts; the
      * tool itself fetches only what is not there yet.
      */
-    const val MAKE_IMAGE_DOWNLOAD_BYTES = 11_382_548_957L
+    const val MAKE_IMAGE_DOWNLOAD_BYTES = 6_165_698_198L
 
     /**
-     * About the free room Make iOS image needs at its peak, for the screen before it starts: the profile's
-     * `need_gib` (30 GiB: the members and their decrypted images side by side) and the set's own new files beside it
-     * (the seed's copied tree and its tar, about 2.5 GB, the kernel's work and kernel.kc, under 1 GB). The tool's
-     * `check` step asks the exact room once, before it fetches or writes anything (its `space` event), and refuses
-     * `space` when it is short; a later run that goes on from fetched parts needs less.
+     * About the free room Make iOS image needs at its peak, for the screen before it starts:
+     * about 18 GiB for the IPSW, decrypted images and kernel work.
      */
-    const val MAKE_IMAGE_ROOM_BYTES = 34L shl 30
+    const val MAKE_IMAGE_ROOM_BYTES = 18L shl 30
 
     /** A step's mark, as the tool's README defines it from the `start` list and the `step` events. */
     enum class StepState { PENDING, NEXT, RUNNING, DONE, FAILED, REFUSED, CANCELLED }
