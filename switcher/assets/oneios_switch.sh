@@ -1251,16 +1251,12 @@ command -v sha256sum >/dev/null 2>&1 || refuse "no sha256sum"
 P_MODEL=$(getprop ro.product.model)
 P_DEVICE=$(getprop ro.product.device)
 P_SOC=$(getprop ro.soc.model)
-SUPPORTED=0
-case "$P_MODEL" in SM-S928*|SM-M515*|SM-A715*) SUPPORTED=1 ;; esac
-case "$P_DEVICE" in e3q|m51|m51nsxx|a71|a71nsxx) SUPPORTED=1 ;; esac
-case "$P_SOC" in SM8650|SM7150) SUPPORTED=1 ;; esac
-if [ "$SUPPORTED" = 1 ]; then
-    echo "Host device verified: $P_MODEL ($P_DEVICE on $P_SOC) is an officially supported OneiOS platform."
-else
+S24U=0
+case "$P_MODEL" in SM-S928*) ;; *) S24U=1 ;; esac
+[ "$P_DEVICE" = e3q ] && [ "$P_SOC" = SM8650 ] || S24U=1
+if [ "$S24U" = 1 ]; then
     echo "WARNING: OneiOS is mainly tested and working on the Galaxy S24 Ultra 5G (an e3q on an SM8650;"
-    echo "WARNING: the SM-S928 models) and Galaxy M51 / Galaxy A71 (SM7150)."
-    echo "WARNING: This phone is ${P_MODEL:-unknown} (${P_DEVICE:-?}, ${P_SOC:-?}): on it the"
+    echo "WARNING: the SM-S928 models). This phone is ${P_MODEL:-unknown} (${P_DEVICE:-?}, ${P_SOC:-?}): on it the"
     echo "WARNING: code may be unstable, miss pieces, or not come back to One UI. Samsung devices are the"
     echo "WARNING: ones it is written for. Going on because you asked it to."
     # What is known of a phone another fork measured (OneiOS docs/s26.md).
@@ -1272,6 +1268,10 @@ else
             echo "WARNING: restarts the phone into One UI." ;;
     esac
 fi
+case "$P_MODEL:$P_DEVICE:$P_SOC" in
+    SM-M515*:*|SM-A715*:*|*:m51:*|*:a71:*|*:*:SM7150)
+        echo "SM7150 platform detected: Galaxy M51 / A71 target verified." ;;
+esac
 
 # The stage first: without a runtime that has xnuhost, that one line is the answer.
 stage_checks

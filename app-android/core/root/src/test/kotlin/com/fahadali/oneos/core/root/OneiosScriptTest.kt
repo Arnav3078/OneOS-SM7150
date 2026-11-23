@@ -1805,7 +1805,7 @@ class OneiosScriptTest {
         assertFalse(File(f.session, "return.request").exists())
         temps(f, 503, 400)
         awaitLevel(f, 3)
-        await("the return request") { File(f.session, "return.request").isFile }
+        await("the return request") { File(f.session, "return.request").let { it.isFile && it.length() > 0 } }
         assertTrue(File(f.session, "return.request").readText().startsWith("thermal: the Android takeover's limit: case 50.3 C (lrp, limit 50.0 C), cell 40.0 C (limit 48.0 C)"))
         assertEquals("${3398400 / 100 * 60}", maxOf(f, 7))
         val r = f.returns()
