@@ -1,0 +1,35 @@
+# OneiOS Host Profile: Samsung Galaxy M51 (SM-M515F)
+[host]
+name = "Galaxy M51"
+model = "SM-M515F"
+model_prefix = "SM-M515"
+device = "m51"
+platform = "sm7150"
+soc = "SM7150"
+chipset = "Qualcomm Snapdragon 730G"
+cpu_cores = 8
+cpu_arch = "arm64-v8a"
+arm_standard = "ARMv8.2-A"
+has_pac = false
+
+[display]
+panel = "Super AMOLED Plus"
+width = 1080
+height = 2400
+refresh_rate = 60
+backlight_dir = "/sys/class/backlight/panel0-backlight"
+brightness_node = "/sys/class/backlight/panel0-backlight/brightness"
+bl_power_node = "/sys/class/backlight/panel0-backlight/bl_power"
+
+[gpu]
+model = "Adreno 618"
+kgsl_device = "/dev/kgsl-3d0"
+kgsl_sysfs = "/sys/class/kgsl/kgsl-3d0"
+supported_mesa_driver = "turnip"
+
+[session]
+guest_compatibility = ["ios-16.7.10-20H350"]
+framework_freeze = true
+return_chord = "KEY_VOLUMEDOWN+KEY_POWER"
+alt_return_chord = "KEY_VOLUMEUP+KEY_VOLUMEDOWN"
+hold_seconds = 3

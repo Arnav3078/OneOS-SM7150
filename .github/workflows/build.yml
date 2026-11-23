@@ -3,9 +3,9 @@ run-name: Build OneOS for Galaxy M51 & A71 (SM7150)
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "Oneios-SM7150" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "main", "Oneios-SM7150" ]
   workflow_dispatch:
 
 permissions:
@@ -72,6 +72,7 @@ jobs:
           cp "$PROBE_APK" "dist/OneOS-SM7150-probe-debug.apk"
           cp "$FULL_APK" "dist/OneOS-M51-A71-full-debug.apk"
           cp "$PROBE_APK" "dist/OneOS-M51-A71-probe-debug.apk"
+          cp "$FULL_APK" "dist/OneiOS-SM7150-full-debug.apk"
           cp switcher/assets/guest_manager.apk "dist/guest_manager.apk"
 
       - name: Upload Debug APKs
