@@ -9,16 +9,15 @@
 schema = 1
 
 [os]
-name = "ios-16.7.10-20H350"
-arch = "arm64"
-darwin = "22.6.0"
-xnu_version = "8792.81.2"
-ios_version = "16.7.10"
+name = "ios-16.7.10-20H350-iPhone10,6"
+version = "16.7.10"
 build = "20H350"
 device = "iPhone10,6"
-device_class = "d221ap"
-chip_id = 32789      # 0x8015 (Apple A11)
-board_id = 12        # 0x0C
+board = "d221ap"
+platform = "t8015"
+chip_id = 0x8015
+board_id = 0x0E
+arch = "arm64"
 
 [ipsw]
 url = "https://updates.cdn-apple.com/2024SpringFCS/fullrestores/062-47894/28C6D3CB-F9DF-4839-B3BB-E7CA850CEB80/iPhone10,3,iPhone10,6_16.7.10_20H350_Restore.ipsw"
@@ -38,13 +37,71 @@ component = "OS"
 path = "087-86698-032.dmg"
 size = 4730601105
 crc32 = "9ef3df0a"
+sha384 = "1abc42a2e5649ed86e23ea720b74ee74c4ca8aa965f7d16ed6d4fa7f92cc036aa9415076a97f68aa120fb5366ad026c0"
 
 [[member]]
-role = "app"
-component = "App"
+role = "systemos"
+component = "Cryptex1,SystemOS"
 path = "087-86593-035.dmg"
 size = 2743074816
 crc32 = "c86c06cc"
+sha384 = "8d89ae224170eb7b909b2889fbc47cf4c42e9fbdada4539d54d40e03c7a1b457c6c8113b68d6bd7b2445557bbdca53f3"
+
+[[member]]
+role = "app"
+component = "Cryptex1,AppOS"
+path = "087-86715-035.dmg"
+size = 10485760
+crc32 = "220b8969"
+sha384 = "fef89f8b73e2f5327d07a9080dc31f8b9da2e181bdcc85026b5f07731ffb71afb5c7943bb8853402f0f9c8a2451b8de7"
+
+[[member]]
+role = "trust-static"
+component = "StaticTrustCache"
+path = "Firmware/087-86698-032.dmg.trustcache"
+size = 66289
+crc32 = "3b43a76a"
+sha384 = "965c6a336b1806fcd8086d27ae929724a76a16fadbb65400c425178eca0f05121eb60e8530736e54aaf1de4140986b08"
+
+[[member]]
+role = "trust-system"
+component = "Cryptex1,SystemTrustCache"
+path = "Firmware/087-86593-035.dmg.trustcache"
+size = 1511
+crc32 = "079ec5dc"
+sha384 = "466af9a69e1960cfaea4cec0bfafa70ee91d23b6db9fa5b1844d17462f7f8b5fcb96bcc013489f1856739497be7058e3"
+
+[[member]]
+role = "trust-app"
+component = "Cryptex1,AppTrustCache"
+path = "Firmware/087-86715-035.dmg.trustcache"
+size = 767
+crc32 = "eac3d790"
+sha384 = "34ad2671318ed9079f4c63c3ef120bd3731095587ecbe8f747fe9b1c7547bd5c4a04b027b30890090d346b2436e10f80"
+
+[[member]]
+role = "roothash-os"
+component = "SystemVolume"
+path = "Firmware/087-86698-032.dmg.root_hash"
+size = 229
+crc32 = "64faa71f"
+sha384 = "de9bf4d34cea7438e90115176c62ff529aee08e5b17f182b1f694c8302a4f94ba0dbb54a6899bdb94282913ccec3bf45"
+
+[[member]]
+role = "roothash-system"
+component = "Cryptex1,SystemVolume"
+path = "Firmware/087-86593-035.dmg.root_hash"
+size = 229
+crc32 = "3581ffbf"
+sha384 = "039198f6c7809bbd1145af3905dd6776943a38063e2ed1b4e5edcde26b3e76e4e30e5bfbbed11bd3cf935a4ccfb5f6d8"
+
+[[member]]
+role = "roothash-app"
+component = "Cryptex1,AppVolume"
+path = "Firmware/087-86715-035.dmg.root_hash"
+size = 229
+crc32 = "34c6e489"
+sha384 = "f6e1155fb63c467ce68d256a403af6135c93b8f4a458f21794a9a3394388f402acd59cadb97525c7a391f8b03aa55c1c"
 
 [[member]]
 role = "kernelcache"
@@ -52,6 +109,56 @@ component = "KernelCache"
 path = "kernelcache.release.iphone10b"
 size = 18201288
 crc32 = "bc62885f"
+sha384 = "a95f2533137088f4bbc2ecfdc226b379d8042e1b64b7d3c4b09123219106d96e8e09be565bb03049e82a75b00f70c2e6"
+
+[[member]]
+role = "devicetree"
+component = "DeviceTree"
+path = "Firmware/all_flash/DeviceTree.d221ap.im4p"
+size = 33928
+crc32 = "5719df66"
+sha384 = "bc43ba007b0c64da6e0eb21132ae3d77cd4080701ec37ee16a59a3a2c509b55af3b75d09c686ecf12e31388b9178940d"
+
+[[member]]
+role = "buildmanifest"
+path = "BuildManifest.plist"
+size = 449774
+crc32 = "c01f8570"
+sha256 = "1c4bacfeb9f50d5c517cf06ec26a7b63a46496a498bf7df1022951afcbfc77eb"
+
+[[member]]
+role = "restore"
+path = "Restore.plist"
+size = 1422
+crc32 = "83ff3c96"
+sha256 = "2c5cdb8163ef2851c7c178ec0b5ec6f72394b8ffb25a9ac8d4a1f0246b1134ff"
+
+[image]
+format = 1
+id = "ios-16.7.10-20H350-iPhone10-6"
+stage = "/data/local/tmp/oneios/image"
+archive = "OneiOS_iOS16.7.10_20H350_iPhone10-6.tar.zst"
+chunk = 1048576
+seed = "data.seed"
+kernel = "kernel.kc"
+
+[image.files]
+os = "os.img"
+systemos = "systemos.img"
+app = "app.img"
+trust-static = "trust/static.trustcache"
+trust-system = "trust/system.trustcache"
+trust-app = "trust/app.trustcache"
+roothash-os = "trust/os.root_hash"
+roothash-system = "trust/system.root_hash"
+roothash-app = "trust/app.root_hash"
+
+[data]
+volume_uuid = "1B7DB2B7-5ECA-4FDA-98AF-55DF8632E355"
+volume_name = "Data"
+store_gib = 16
+source = "private/var"
+epoch = 1790621655
 
 [display]
 width = 1080
