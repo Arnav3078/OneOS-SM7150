@@ -4607,6 +4607,11 @@ echo "Screen recording: $([ -f "$STAGE/data/oneos_record" ] && echo on || echo o
 # rejects frames in the first 30 s, and the switch's watcher later in the
 # session. ONEOS_GUEST_HWC=0|1 overrides the default.
 HWC_DEF=1
+if [ -e "$ROOTFS/system/framework/oplus-services.jar" ] || [ -L "$ROOTFS/system/framework/oplus-services.jar" ]; then
+    case "$(getprop ro.product.model 2>/dev/null):$(getprop ro.board.platform 2>/dev/null)" in
+        *A715*|*M515*|*sm7150*) HWC_DEF=0 ;;
+    esac
+fi
 if [ "${ONEOS_GUEST_HWC:-$HWC_DEF}" = 1 ]; then touch "$STAGE/data/oneos_hwc"; else rm -f "$STAGE/data/oneos_hwc"; fi
 rm -f "$STAGE/data/oneos_hwc_forced"
 echo "Guest HW overlays: $([ -f "$STAGE/data/oneos_hwc" ] && echo 'on (GPU composition forced only if the composer rejects frames)' || echo 'off (GPU composition)')"

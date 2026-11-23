@@ -815,9 +815,12 @@ if [ -w "$KBL/brightness" ]; then
         while [ \$i -lt 60 ]; do
             # ColorOS drives the panel itself once the UI activator ran.
             [ \"\$(getprop service.bootanim.exit)\" = 1 ] && break
-            if [ \"\$(cat $KBL/brightness)\" = 0 ]; then
+            [ -f $KBL/bl_power ] && echo 0 > $KBL/bl_power 2>/dev/null || true
+            actual=\$(cat $KBL/actual_brightness 2>/dev/null || echo 0)
+            cur=\$(cat $KBL/brightness 2>/dev/null || echo 0)
+            if [ \"\$cur\" = 0 ] || [ \"\$actual\" = 0 ]; then
                 echo $BLON > $KBL/brightness
-                echo \"\$(date +%T) $KNAME backlight was 0, set to \$(cat $KBL/brightness)\"
+                echo \"\$(date +%T) $KNAME backlight was \${cur:-0} (actual \${actual:-0}), set to \$(cat $KBL/brightness 2>/dev/null)\"
             fi
             sleep 3; i=\$((i + 1))
         done
@@ -853,7 +856,7 @@ fi
 BRIDGE=0
 case "${ONEOS_GUEST_BL_BRIDGE:-1}" in force) BLFORCE=1 ;; *) BLFORCE=0 ;; esac
 if [ $LEDBL = 1 ]; then [ "${ONEOS_GUEST_LED_BRIDGE:-1}" = 1 ] && BRIDGE=1
-elif [ "${ONEOS_GUEST_BL_BRIDGE:-1}" != 0 ] && [ "$BL" = /sys/class/backlight/panel ] && [ -w "$BL/brightness" ]; then
+elif [ "${ONEOS_GUEST_BL_BRIDGE:-1}" != 0 ] && { [ "$BL" = /sys/class/backlight/panel0-backlight ] || [ "$BL" = /sys/class/backlight/panel ]; } && [ -w "$BL/brightness" ]; then
     case "$BLMAX" in ''|*[!0-9]*) ;; *) BRIDGE=1 ;; esac
 fi
 if [ $BRIDGE = 1 ]; then
@@ -906,7 +909,9 @@ elif [ "$LED" != 1 ] && { [ "$usc" != false ] || [ "$force" != true ]; }; then
     while [ $i -lt 600 ]; do
         i=$((i + 1)); sleep 1
         if [ "$(wc -l < /data/oneos_bl_refused 2>/dev/null)" -ge 3 ] 2>/dev/null; then n=15; refused=1; break; fi
-        [ "$(cat $BL/brightness 2>/dev/null)" = 0 ] || { n=0; continue; }
+        act=$(cat $BL/actual_brightness 2>/dev/null || echo 0)
+        cur=$(cat $BL/brightness 2>/dev/null || echo 0)
+        if [ "$cur" != 0 ] && [ "$act" != 0 ]; then n=0; continue; fi
         case "$(dumpsys power 2>/dev/null | sed -n 's/^ *mWakefulness=//p' | head -n 1)" in
             Awake) ;;
             *) n=0; continue ;;
@@ -945,6 +950,12 @@ while :; do
         Asleep) if [ "$LED" = 1 ]; then v=0; else v=""; fi ;;
         Dozing) v=$((NORM / 20 + 1)) ;;
         Awake)
+            [ -f "$BL/bl_power" ] && echo 0 > "$BL/bl_power" 2>/dev/null || true
+            act=$(cat "$BL/actual_brightness" 2>/dev/null || echo 0)
+            cur=$(cat "$BL/brightness" 2>/dev/null || echo 0)
+            if [ "$act" = 0 ] || [ "$cur" = 0 ]; then
+                echo "$ON" > "$BL/brightness" 2>/dev/null || true
+            fi
             f=$(timeout 3 cmd display get-brightness 0 2>/dev/null | head -n 1)
             v=$(echo "$f" | awk -v m="$MAX" -v n="$NORM" -v lo="$lo" -v nm="$nm" -v hi="$hi" -v s="$SCALE" '
                 {
@@ -965,6 +976,7 @@ while :; do
         *) v="" ;;
     esac
     if [ -n "$v" ] && [ "$v" != "$last" ]; then
+        [ -f "$BL/bl_power" ] && echo 0 > "$BL/bl_power" 2>/dev/null || true
         echo $v > $BL/brightness && echo "$(date +%T) $w: $v"
         last=$v
     fi

@@ -2384,8 +2384,25 @@ while true; do
             setprop ctl.stop samsungani 2>/dev/null || true
             setprop ctl.stop bootanim 2>/dev/null || true
             kill -9 \$(pidof bootanimation samsungani) 2>/dev/null || true
-            $BB nsenter -t \$PID -m /system/bin/sh /data/oneos_genv.sh /system/bin/cmd power set-screen-state 2 2>/dev/null || true
+            $BB nsenter -t \$PID -m /system/bin/sh /data/oneos_genv.sh /system/bin/svc power stayon true 2>/dev/null || true
             $BB nsenter -t \$PID -m /system/bin/sh /data/oneos_genv.sh /system/bin/input keyevent 224 2>/dev/null || true
+            $BB nsenter -t \$PID -m /system/bin/sh /data/oneos_genv.sh /system/bin/input keyevent 82 2>/dev/null || true
+            $BB nsenter -t \$PID -m /system/bin/sh /data/oneos_genv.sh /system/bin/wm dismiss-keyguard 2>/dev/null || true
+            for bldir in /sys/class/backlight/panel0-backlight /sys/class/backlight/panel /sys/class/lcd/panel/panel /sys/class/lcd/panel/device/backlight/panel /sys/class/leds/lcd-backlight; do
+                [ -d \"\$bldir\" ] || continue
+                [ -f \"\$bldir/bl_power\" ] && echo 0 > \"\$bldir/bl_power\" 2>/dev/null || true
+                act=\$(cat \"\$bldir/actual_brightness\" 2>/dev/null || echo 0)
+                cur_bl=\$(cat \"\$bldir/brightness\" 2>/dev/null || echo 0)
+                max_bl=\$(cat \"\$bldir/max_brightness\" 2>/dev/null || echo 0)
+                if [ \"\${max_bl:-0}\" -gt 0 ] 2>/dev/null; then
+                    if [ \"\$cur_bl\" = 0 ] || [ \"\$act\" = 0 ] || [ -z \"\$act\" ]; then
+                        tbl=\$((max_bl * 180 / 425))
+                        [ \"\$tbl\" -gt 50 ] 2>/dev/null || tbl=180
+                        echo \"\$tbl\" > \"\$bldir/brightness\" 2>/dev/null || true
+                        echo \"[UI Activator] Early backlight unblank \$tbl on \$bldir/brightness (was \${cur_bl:-0}, actual \${act:-0})\"
+                    fi
+                fi
+            done
             sleep 1
             # The screen's own timeout and the user's stay-awake choice: up to
             # 0.4.34 every boot forced stay awake on any charger (svc power stayon,
@@ -3096,19 +3113,27 @@ while true; do
             fi
             echo \"[UI Activator] refresh: min \$($BB nsenter -t \$PID -m /system/bin/sh /data/oneos_genv.sh /system/bin/settings get system min_refresh_rate) peak \$($BB nsenter -t \$PID -m /system/bin/sh /data/oneos_genv.sh /system/bin/settings get system peak_refresh_rate); brightness \$($BB nsenter -t \$PID -m /system/bin/sh /data/oneos_genv.sh /system/bin/settings get system screen_brightness)\"
             echo '[UI Activator] Home activated!'
-            $BB nsenter -t \$PID -m /system/bin/sh /data/oneos_genv.sh /system/bin/cmd power set-screen-state 2 2>/dev/null || true
+            $BB nsenter -t \$PID -m /system/bin/sh /data/oneos_genv.sh /system/bin/svc power stayon true 2>/dev/null || true
             $BB nsenter -t \$PID -m /system/bin/sh /data/oneos_genv.sh /system/bin/input keyevent 224 2>/dev/null || true
+            $BB nsenter -t \$PID -m /system/bin/sh /data/oneos_genv.sh /system/bin/input keyevent 82 2>/dev/null || true
             $BB nsenter -t \$PID -m /system/bin/sh /data/oneos_genv.sh /system/bin/wm dismiss-keyguard 2>/dev/null || true
+            $BB nsenter -t \$PID -m /system/bin/sh /data/oneos_genv.sh /system/bin/input swipe 540 1800 540 400 200 2>/dev/null || true
             cur_sb=\$($BB nsenter -t \$PID -m /system/bin/sh /data/oneos_genv.sh /system/bin/settings get system screen_brightness 2>/dev/null)
             if [ -z \"\$cur_sb\" ] || [ \"\$cur_sb\" = 0 ] || [ \"\$cur_sb\" = null ]; then
                 $BB nsenter -t \$PID -m /system/bin/sh /data/oneos_genv.sh /system/bin/settings put system screen_brightness 128 2>/dev/null || true
             fi
-            for bl in /sys/class/backlight/panel0-backlight/brightness /sys/class/backlight/panel/brightness /sys/class/lcd/panel/panel/brightness /sys/class/lcd/panel/device/backlight/panel/brightness /sys/class/leds/lcd-backlight/brightness; do
-                if [ -f \"\$bl\" ]; then
-                    cur_bl=\$(cat \"\$bl\" 2>/dev/null || echo 0)
-                    if [ \"\$cur_bl\" = 0 ] || [ -z \"\$cur_bl\" ]; then
-                        echo 180 > \"\$bl\" 2>/dev/null || true
-                        echo \"[UI Activator] Backlight forced to 180 on \$bl (was \${cur_bl:-0})\"
+            for bldir in /sys/class/backlight/panel0-backlight /sys/class/backlight/panel /sys/class/lcd/panel/panel /sys/class/lcd/panel/device/backlight/panel /sys/class/leds/lcd-backlight; do
+                [ -d \"\$bldir\" ] || continue
+                [ -f \"\$bldir/bl_power\" ] && echo 0 > \"\$bldir/bl_power\" 2>/dev/null || true
+                act=\$(cat \"\$bldir/actual_brightness\" 2>/dev/null || echo 0)
+                cur_bl=\$(cat \"\$bldir/brightness\" 2>/dev/null || echo 0)
+                max_bl=\$(cat \"\$bldir/max_brightness\" 2>/dev/null || echo 0)
+                if [ \"\${max_bl:-0}\" -gt 0 ] 2>/dev/null; then
+                    if [ \"\$cur_bl\" = 0 ] || [ \"\$act\" = 0 ] || [ -z \"\$act\" ]; then
+                        tbl=\$((max_bl * 180 / 425))
+                        [ \"\$tbl\" -gt 50 ] 2>/dev/null || tbl=180
+                        echo \"\$tbl\" > \"\$bldir/brightness\" 2>/dev/null || true
+                        echo \"[UI Activator] Backlight forced to \$tbl on \$bldir/brightness (was \${cur_bl:-0}, actual \${act:-0}, max \$max_bl)\"
                     fi
                 fi
             done
