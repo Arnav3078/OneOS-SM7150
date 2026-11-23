@@ -38,6 +38,8 @@ path = "087-86698-032.dmg"
 size = 4730601105
 crc32 = "9ef3df0a"
 sha384 = "1abc42a2e5649ed86e23ea720b74ee74c4ca8aa965f7d16ed6d4fa7f92cc036aa9415076a97f68aa120fb5366ad026c0"
+plain_size = 5635047424
+plain_sha256 = "df45df5a09a46fdd9ebd83454615824d418d1d45e80d16dd70b058094b5177af"
 
 [[member]]
 role = "systemos"
@@ -179,3 +181,11 @@ compositor = "virtio-gpu-3d"
 return_chord = "KEY_VOLUMEDOWN+KEY_POWER"
 alt_return_chord = "KEY_VOLUMEUP+KEY_VOLUMEDOWN"
 chord_hold_seconds = 3
+
+[kernel.prelink]
+tool = "kits/XnuPrelink/emit_prelink.py"
+kernel = "build/xnu/ios-obj/DEVELOPMENT_ARM64_BCM2837/mach.development.bcm2837.unstripped.noctf"
+slide = "-0x1000000"
+kernelcache_sha256 = "9de6156f1e870083d2e2437d8ab77796232d232e36584602742803acb0fd849e"
+extra_args = ["--fileset-reference", "build/xnu/fileset-reference/mach.release.bcm2837.unstripped.noctf", "--allow-missing"]
+roots = ["com.apple.AppleFSCompression.AppleFSCompressionTypeZlib", "com.apple.driver.AppleARMPlatform", "com.apple.driver.AppleARMWatchdogTimer", "com.apple.driver.AppleAudioClockLibs", "com.apple.driver.AppleEffaceableStorage", "com.apple.driver.AppleIISController", "com.apple.driver.AppleM2ScalerCSCDriver", "com.apple.driver.AppleMobileFileIntegrity", "com.apple.driver.ApplePMGR", "com.apple.driver.IODARTFamily", "com.apple.filesystems.apfs", "com.apple.iokit.CoreAnalyticsFamily", "com.apple.iokit.IOAVFamily", "com.apple.iokit.IOAudio2Family", "com.apple.iokit.IOCECFamily", "com.apple.iokit.IOCryptoAcceleratorFamily", "com.apple.iokit.IOGPUFamily", "com.apple.iokit.IOHDCPFamily", "com.apple.iokit.IOMobileGraphicsFamily", "com.apple.iokit.IOReportFamily", "com.apple.iokit.IOSlowAdaptiveClockingFamily", "com.apple.iokit.IOStorageFamily", "com.apple.iokit.IOSurface", "com.apple.kec.Libm", "com.apple.kec.corecrypto", "com.apple.kext.AppleMatch", "com.apple.kext.CoreTrust", "com.apple.security.AppleImage4", "com.apple.security.sandbox", "com.apple.iokit.IOHIDFamily", "com.apple.iokit.IOHIDEventDriver"]
