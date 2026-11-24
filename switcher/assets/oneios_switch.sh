@@ -917,7 +917,7 @@ case "$MODE" in
         # The switch is exempt from the OOM killer (-1000) and xnuhost would
         # inherit that: with memory gone the kernel would then end One UI's
         # daemons, or panic. The guest is what goes first; its end is a return.
-        echo 500 > /proc/$$/oom_score_adj 2>/dev/null
+        echo 0 > /proc/$$/oom_score_adj 2>/dev/null
         export ONEIOS_SESSION_ABI=$ABI ONEIOS_MODE=takeover ONEIOS_RUNTIME=/data/runtime ONEIOS_IMAGE=/data/image \
                ONEIOS_DATA=/data/data ONEIOS_SESSION=/data/session TMPDIR=/data/session/tmp
         unset BB ONEIOS_APP ONEIOS_TEST_ROOT
@@ -936,10 +936,10 @@ case "$MODE" in
         # line and one setting more. The default session's command line is unchanged.
         if [ "$(cat /data/control/base/mode 2>/dev/null)" = takeover ]; then
             exec "/data/runtime/$R_XNUHOST" --session-abi $ABI --mode takeover \
-                --runtime /data/runtime --image /data/image --data /data/data --session /data/session --set session-mode=takeover
+                --runtime /data/runtime --image /data/image --data /data/data --session /data/session --set session-mode=takeover --ram 2048M
         fi
         exec "/data/runtime/$R_XNUHOST" --session-abi $ABI --mode takeover \
-            --runtime /data/runtime --image /data/image --data /data/data --session /data/session
+            --runtime /data/runtime --image /data/image --data /data/data --session /data/session --ram 2048M
         echo "oneios inner: could not exec xnuhost"
         exit 71
         ;;

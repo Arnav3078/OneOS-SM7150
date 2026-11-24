@@ -190,18 +190,30 @@ print(f"bdev_ioctl: {len(raw_ioctl)} bytes")
 # 6. apfs_mountroot @ 0xfffffff00754f400
 # =====================================================================
 asm_mountroot = bld.Assembler(0xfffffff00754f400)
-asm_mountroot.emit(bld.sub_sp_sp, 0x90)
-asm_mountroot.emit(bld.stp, 29, 30, 31, 0x80)
-asm_mountroot.emit(bld.stp, 19, 20, 31, 0x70)
-asm_mountroot.emit(bld.stp, 21, 22, 31, 0x60)
-asm_mountroot.emit(bld.add_reg_sp, 29, 0x80)
+asm_mountroot.emit(bld.sub_sp_sp, 0xa0)
+asm_mountroot.emit(bld.stp, 29, 30, 31, 0x90)
+asm_mountroot.emit(bld.stp, 19, 20, 31, 0x80)
+asm_mountroot.emit(bld.stp, 21, 22, 31, 0x70)
+asm_mountroot.emit(bld.stp, 23, 24, 31, 0x60)
+asm_mountroot.emit(bld.add_reg_sp, 29, 0x90)
 asm_mountroot.emit(bld.mov_reg, 19, 0) # x19 = mp
 asm_mountroot.emit(bld.mov_reg, 20, 1) # x20 = devvp
 asm_mountroot.emit(bld.mov_reg, 21, 2) # x21 = ctx
 
-# Step 1: Copy 64 entries from *devfs_vnodeop_p to custom_vnodeops (0xfffffff007c81310)
-asm_mountroot.emit(lambda pc: bld.adrp(0, pc, 0xfffffff007c81000))
-asm_mountroot.emit(bld.add_reg_imm, 0, 0, 0x310) # dst = 0xfffffff007c81310
+# Step 1: Allocate custom_vnodeops (512 bytes) using kalloc_data(512, 0)
+asm_mountroot.emit(bld.mov_ximm, 0, 512)
+asm_mountroot.emit(bld.mov_ximm, 1, 0) # Z_WAITOK = 0
+asm_mountroot.emit(lambda pc: bld.bl(pc, 0xfffffff00732d8b4)) # kalloc_data(512, 0)
+asm_mountroot.emit(lambda pc, tgt: bld.cbz(0, pc, tgt), 'mount_fail')
+asm_mountroot.emit(bld.mov_reg, 23, 0) # x23 = custom_vnodeops
+asm_mountroot.emit(bld.mov_reg, 10, 0) # x10 = custom_vnodeops
+
+# Save to g_custom_vnodeops at 0xfffffff007d5da28
+asm_mountroot.emit(lambda pc: bld.adrp(8, pc, 0xfffffff007d5d000))
+asm_mountroot.emit(bld.str_reg, 23, 8, 0xa28)
+
+# Copy 64 entries from *devfs_vnodeop_p to custom_vnodeops
+asm_mountroot.emit(bld.mov_reg, 0, 23)           # dst = custom_vnodeops
 asm_mountroot.emit(lambda pc: bld.adrp(1, pc, 0xfffffff007d50000))
 asm_mountroot.emit(bld.ldr_reg, 1, 1, 0x380)     # src = *devfs_vnodeop_p
 asm_mountroot.emit(bld.mov_ximm, 2, 64)          # count = 64
@@ -215,9 +227,6 @@ asm_mountroot.emit(bld.subs_reg_imm, 2, 2, 1)
 asm_mountroot.emit(lambda pc, tgt: bld.b_ne(pc, tgt), 'copy_ops_loop')
 
 # Overwrite slots in custom_vnodeops:
-asm_mountroot.emit(lambda pc: bld.adrp(10, pc, 0xfffffff007c81000))
-asm_mountroot.emit(bld.add_reg_imm, 10, 10, 0x310) # x10 = custom_vnodeops
-
 # ret0_stub = 0xfffffff00754f610
 asm_mountroot.emit(lambda pc: bld.adrp(8, pc, 0xfffffff00754f000))
 asm_mountroot.emit(bld.add_reg_imm, 8, 8, 0x610)
@@ -258,7 +267,7 @@ asm_mountroot.emit(bld.add_reg_imm, 8, 8, 0xa8f) # params.vnfs_str = '/'
 asm_mountroot.emit(bld.str_reg, 8, 31, 0x10)
 asm_mountroot.emit(bld.mov_wimm, 8, 1)
 asm_mountroot.emit(bld.str_reg, 8, 31, 0x20)  # params.vnfs_fsnode = 1
-asm_mountroot.emit(bld.str_reg, 10, 31, 0x28) # params.vnfs_vops = custom_vnodeops
+asm_mountroot.emit(bld.str_reg, 23, 31, 0x28) # params.vnfs_vops = custom_vnodeops (x23)
 asm_mountroot.emit(bld.mov_wimm, 8, 1)
 asm_mountroot.emit(bld.str_reg, 8, 31, 0x30)  # params.vnfs_markroot = 1
 asm_mountroot.emit(bld.mov_ximm, 8, 4096)
@@ -274,8 +283,10 @@ asm_mountroot.emit(lambda pc, tgt: bld.cbnz_w(0, pc, tgt), 'mount_fail')
 
 asm_mountroot.emit(bld.ldr_reg, 22, 31, 0x58) # x22 = rootvp
 asm_mountroot.emit(bld.str_reg, 22, 19, 0x8f8) # mp->mnt_data = rootvp
-asm_mountroot.emit(lambda pc: bld.adrp(8, pc, 0xfffffff007c81000))
-asm_mountroot.emit(bld.str_reg, 22, 8, 0x300) # apfs_rootvp = rootvp
+
+# Save rootvp to _rootvp at 0xfffffff007d5d9f8
+asm_mountroot.emit(lambda pc: bld.adrp(8, pc, 0xfffffff007d5d000))
+asm_mountroot.emit(bld.str_reg, 22, 8, 0x9f8) # _rootvp = rootvp
 
 # Step 3: Create launchd_vp (VREG)
 asm_mountroot.emit(bld.mov_wimm, 8, 1)
@@ -301,20 +312,23 @@ asm_mountroot.emit(lambda pc: bld.bl(pc, 0xfffffff0075d44e0)) # vnode_create_int
 asm_mountroot.emit(lambda pc, tgt: bld.cbnz_w(0, pc, tgt), 'mount_fail')
 
 asm_mountroot.emit(bld.ldr_reg, 8, 31, 0x58) # x8 = launchd_vp
-asm_mountroot.emit(lambda pc: bld.adrp(9, pc, 0xfffffff007c81000))
-asm_mountroot.emit(bld.str_reg, 8, 9, 0x308) # launchd_vp = vp
+asm_mountroot.emit(lambda pc: bld.adrp(9, pc, 0xfffffff007d5d000))
+asm_mountroot.emit(bld.str_reg, 8, 9, 0xa08) # g_launchd_vp (_native_apfs_vfsops) = vp
 
 # Success: return 0
 asm_mountroot.emit(bld.mov_wimm, 0, 0)
 asm_mountroot.emit(lambda pc, tgt: bld.b(pc, tgt), 'mount_ret')
 
 asm_mountroot.label('mount_fail')
+asm_mountroot.emit(lambda pc, tgt: bld.cbnz_w(0, pc, tgt), 'mount_ret')
+asm_mountroot.emit(bld.mov_wimm, 0, 19) # ENODEV if w0 was 0
 
 asm_mountroot.label('mount_ret')
-asm_mountroot.emit(bld.ldp, 21, 22, 31, 0x60)
-asm_mountroot.emit(bld.ldp, 19, 20, 31, 0x70)
-asm_mountroot.emit(bld.ldp, 29, 30, 31, 0x80)
-asm_mountroot.emit(bld.add_sp_sp, 0x90)
+asm_mountroot.emit(bld.ldp, 23, 24, 31, 0x60)
+asm_mountroot.emit(bld.ldp, 21, 22, 31, 0x70)
+asm_mountroot.emit(bld.ldp, 19, 20, 31, 0x80)
+asm_mountroot.emit(bld.ldp, 29, 30, 31, 0x90)
+asm_mountroot.emit(bld.add_sp_sp, 0xa0)
 asm_mountroot.emit(bld.ret)
 
 opcodes_mountroot = asm_mountroot.assemble()
@@ -322,13 +336,13 @@ raw_mountroot = b''.join(op.to_bytes(4, 'little') for pc, op in opcodes_mountroo
 print(f"apfs_mountroot: {len(raw_mountroot)} bytes (ends at 0x{0xfffffff00754f400 + len(raw_mountroot):x})")
 
 # =====================================================================
-# 7. apfs_root @ 0xfffffff00754f5b0
+# 7. apfs_root @ 0xfffffff00754f9b0
 # =====================================================================
-asm_root = bld.Assembler(0xfffffff00754f5b0)
+asm_root = bld.Assembler(0xfffffff00754f9b0)
 asm_root.emit(bld.ldr_reg, 8, 0, 0x8f8) # mp->mnt_data
 asm_root.emit(lambda pc, tgt: bld.cbnz(8, pc, tgt), 'has_vp')
-asm_root.emit(lambda pc: bld.adrp(9, pc, 0xfffffff007c81000))
-asm_root.emit(bld.ldr_reg, 8, 9, 0x300) # apfs_rootvp
+asm_root.emit(lambda pc: bld.adrp(9, pc, 0xfffffff007d5d000))
+asm_root.emit(bld.ldr_reg, 8, 9, 0x9f8) # _rootvp
 
 asm_root.label('has_vp')
 asm_root.emit(lambda pc, tgt: bld.cbz(8, pc, tgt), 'no_vp')
@@ -356,7 +370,7 @@ asm_root.emit(bld.ret)
 
 opcodes_root = asm_root.assemble()
 raw_root = b''.join(op.to_bytes(4, 'little') for pc, op in opcodes_root)
-print(f"apfs_root: {len(raw_root)} bytes (ends at 0x{0xfffffff00754f5b0 + len(raw_root):x})")
+print(f"apfs_root: {len(raw_root)} bytes (ends at 0x{0xfffffff00754f9b0 + len(raw_root):x})")
 
 # =====================================================================
 # 8. ret0_stub @ 0xfffffff00754f610
@@ -401,8 +415,8 @@ asm_lookup.emit(bld.cmp_xreg, 8, 10)
 asm_lookup.emit(lambda pc, tgt: bld.b_ne(pc, tgt), 'check_create')
 
 # Match! Return launchd_vp
-asm_lookup.emit(lambda pc: bld.adrp(8, pc, 0xfffffff007c81000))
-asm_lookup.emit(bld.ldr_reg, 0, 8, 0x308) # x0 = launchd_vp
+asm_lookup.emit(lambda pc: bld.adrp(8, pc, 0xfffffff007d5d000))
+asm_lookup.emit(bld.ldr_reg, 0, 8, 0xa08) # x0 = launchd_vp (_native_apfs_vfsops)
 asm_lookup.emit(bld.mov_reg, 24, 0)       # x24 = launchd_vp
 asm_lookup.emit(lambda pc: bld.bl(pc, 0xfffffff0075d3c70)) # vnode_get
 asm_lookup.emit(lambda pc, tgt: bld.cbnz_w(0, pc, tgt), 'out_err')
@@ -435,8 +449,8 @@ asm_lookup.emit(bld.ldr_wreg, 8, 21, 0x04) # cnp->cn_flags
 asm_lookup.emit(lambda pc, tgt: bld.tbnz(8, 15, pc, tgt), 'return_null') # ISLASTCN
 
 asm_lookup.label('return_rootvp')
-asm_lookup.emit(lambda pc: bld.adrp(8, pc, 0xfffffff007c81000))
-asm_lookup.emit(bld.ldr_reg, 0, 8, 0x300) # x0 = rootvp
+asm_lookup.emit(lambda pc: bld.adrp(8, pc, 0xfffffff007d5d000))
+asm_lookup.emit(bld.ldr_reg, 0, 8, 0x9f8) # x0 = rootvp (_rootvp)
 asm_lookup.emit(bld.mov_reg, 24, 0)       # x24 = rootvp
 asm_lookup.emit(lambda pc: bld.bl(pc, 0xfffffff0075d3c70)) # vnode_get
 asm_lookup.emit(lambda pc, tgt: bld.cbnz_w(0, pc, tgt), 'out_err')
@@ -487,8 +501,8 @@ asm_getattr.emit(bld.str_wreg, 31, 1, 0x44)
 asm_getattr.emit(bld.str_wreg, 31, 1, 0x48)
 
 # Check if vp == launchd_vp
-asm_getattr.emit(lambda pc: bld.adrp(9, pc, 0xfffffff007c81000))
-asm_getattr.emit(bld.ldr_reg, 9, 9, 0x308) # x9 = launchd_vp
+asm_getattr.emit(lambda pc: bld.adrp(9, pc, 0xfffffff007d5d000))
+asm_getattr.emit(bld.ldr_reg, 9, 9, 0xa08) # x9 = launchd_vp (_native_apfs_vfsops)
 asm_getattr.emit(bld.cmp_xreg, 2, 9)
 asm_getattr.emit(lambda pc, tgt: bld.b_eq(pc, tgt), 'is_launchd')
 
@@ -671,7 +685,6 @@ buf[fo_code + 0x158 : fo_code + 0x158 + len(raw_close)] = raw_close       # 0xff
 buf[fo_code + 0x160 : fo_code + 0x160 + len(raw_psize)] = raw_psize       # 0xfffffff00754f370
 buf[fo_code + 0x170 : fo_code + 0x170 + len(raw_ioctl)] = raw_ioctl       # 0xfffffff00754f380
 buf[fo_code + 0x1f0 : fo_code + 0x1f0 + len(raw_mountroot)] = raw_mountroot # 0xfffffff00754f400
-buf[fo_code + 0x3a0 : fo_code + 0x3a0 + len(raw_root)] = raw_root         # 0xfffffff00754f5b0
 buf[fo_code + 0x400 : fo_code + 0x400 + len(raw_ret0)] = raw_ret0         # 0xfffffff00754f610
 buf[fo_code + 0x410 : fo_code + 0x410 + len(raw_lookup)] = raw_lookup     # 0xfffffff00754f620
 buf[fo_code + 0x530 : fo_code + 0x530 + len(raw_getattr)] = raw_getattr   # 0xfffffff00754f740
@@ -702,35 +715,31 @@ for slot in (0, 1):
 print('bdevsw slots 0 and 1 chained fixups updated cleanly!')
 
 # =====================================================================
-# Splice apfs_vfsops into Page 1 chained fixups
+# 13. apfs_vfsops @ 0xfffffff00754f940 (fo 0x54b940) & apfs_root @ 0xfffffff00754f9b0 (fo 0x54b9b0)
 # =====================================================================
-fo_290 = 0xc7d290
-orig_290 = struct.unpack('<Q', buf[fo_290:fo_290+8])[0]
-tgt_290 = orig_290 & 0x3fffffff
-buf[fo_290:fo_290+8] = struct.pack('<Q', (2 << 51) | tgt_290)
+ret0_stub_va = 0xfffffff00754f610
+apfs_root_va = 0xfffffff00754f9b0
+raw_vfsops = struct.pack('<12Q',
+    ret0_stub_va, # [00] vfs_mount -> ret0_stub
+    ret0_stub_va, # [08] vfs_start -> ret0_stub
+    ret0_stub_va, # [10] vfs_unmount -> ret0_stub
+    apfs_root_va, # [18] vfs_root -> apfs_root
+    0,            # [20] vfs_quotactl = NULL
+    ret0_stub_va, # [28] vfs_statfs -> ret0_stub
+    ret0_stub_va, # [30] vfs_sync -> ret0_stub
+    ret0_stub_va, # [38] vfs_vget -> ret0_stub
+    0,            # [40] vfs_fhtovp = NULL
+    0,            # [48] vfs_vptofh = NULL
+    ret0_stub_va, # [50] vfs_init -> ret0_stub
+    0,            # [58] vfs_sysctl = NULL
+)
+fo_vfsops = fo_code + 0x730 # 0x54b940
+buf[fo_vfsops : fo_vfsops + len(raw_vfsops)] = raw_vfsops
+print(f"apfs_vfsops: {len(raw_vfsops)} bytes written to fo 0x{fo_vfsops:x} (VA 0xfffffff00754f940)!")
 
-# apfs_vfsops at fo 0xc7d298 (VA 0xfffffff007c81298)
-# struct vfsops (12 entries = 96 bytes)
-# ret0_stub is at 0x54b610
-# apfs_root is at 0x54b5b0
-vfsops_entries = [
-    (0, (2 << 51) | 0x54b610),   # [00] vfs_mount -> ret0_stub, next=2 (+8 B)
-    (1, (2 << 51) | 0x54b610),   # [08] vfs_start -> ret0_stub, next=2 (+8 B)
-    (2, (2 << 51) | 0x54b610),   # [10] vfs_unmount -> ret0_stub, next=2 (+8 B)
-    (3, (4 << 51) | 0x54b5b0),   # [18] vfs_root -> apfs_root, next=4 (+16 B) [skips quotactl]
-    (4, 0),                      # [20] vfs_quotactl = NULL
-    (5, (2 << 51) | 0x54b610),   # [28] vfs_statfs -> ret0_stub, next=2 (+8 B)
-    (6, (2 << 51) | 0x54b610),   # [30] vfs_sync -> ret0_stub, next=2 (+8 B)
-    (7, (6 << 51) | 0x54b610),   # [38] vfs_vget -> ret0_stub, next=6 (+24 B) [skips fhtovp, vptofh]
-    (8, 0),                      # [40] vfs_fhtovp = NULL
-    (9, 0),                      # [48] vfs_vptofh = NULL
-    (10, (138 << 51) | 0x54b610),# [50] vfs_init -> ret0_stub, next=138 (+552 B) -> lands on 0xc7d510
-    (11, 0),                     # [58] vfs_sysctl = NULL
-]
-for idx, val in vfsops_entries:
-    struct.pack_into('<Q', buf, 0xc7d298 + idx*8, val)
-
-print('apfs_vfsops spliced into Page 1 fixup chain at 0xc7d298!')
+fo_root = fo_code + 0x7a0 # 0x54b9b0
+buf[fo_root : fo_root + len(raw_root)] = raw_root
+print(f"apfs_root: {len(raw_root)} bytes written to fo 0x{fo_root:x} (VA 0xfffffff00754f9b0)!")
 
 # =====================================================================
 # Splice APFS into vfsconf Entry 3 on Page 17 chained fixups
@@ -741,7 +750,7 @@ tgt_e2 = orig_e2 & 0x3fffffff
 buf[fo_entry2:fo_entry2+8] = struct.pack('<Q', (24 << 51) | tgt_e2)
 
 # Entry 3 at fo 0xc8da08 (VA 0xfffffff007c91a08)
-struct.pack_into('<Q', buf, 0xc8da08, (10 << 51) | 0xc7d298)
+struct.pack_into('<Q', buf, 0xc8da08, (10 << 51) | 0x54b940) # points to apfs_vfsops at 0x54b940
 buf[0xc8da10:0xc8da20] = b'apfs\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00'
 struct.pack_into('<II', buf, 0xc8da20, 20, 0)
 struct.pack_into('<Q', buf, 0xc8da28, 0x04000020)
@@ -752,7 +761,7 @@ struct.pack_into('<Q', buf, 0xc8da40, 0)
 struct.pack_into('<Q', buf, 0xc8da48, 0x104)
 struct.pack_into('<QQ', buf, 0xc8da50, 0, 0)
 
-print('APFS vfsconf configured in Entry 3 at 0xc8da08!')
+print('APFS vfsconf configured in Entry 3 at 0xc8da08 pointing to apfs_vfsops at 0x54b940!')
 
 # =====================================================================
 # Patch bsd_init rootvp authentication check @ 0xfffffff007858944
@@ -784,13 +793,6 @@ print('Patched SystemOS offline owner mount check at 0xfffffff00788fbb8 & 0xffff
 fo_data_panic = 0x88bdb8
 struct.pack_into('<I', buf, fo_data_panic, 0xd503201f)
 print('Patched Data scratch offline mount check at 0xfffffff00788fdb8!')
-
-# Clear global pointers at 0xfffffff007c81300 (fo 0xc7d300):
-# 0xc7d300: apfs_rootvp (8 B)
-# 0xc7d308: launchd_vp (8 B)
-# 0xc7d310 .. 0xc7d510: custom_vnodeops (512 B)
-buf[0xc7d300 : 0xc7d510] = b'\x00' * 528
-print('Cleared global rootvp, launchd_vp, and custom_vnodeops memory!')
 
 # =====================================================================
 # Append launchd.bin and expand __LINKEDIT segment
@@ -840,7 +842,6 @@ def verify_chain(page_name, start_fo, expected_fo, expected_end):
     assert curr == expected_end, f"Page {page_name}: expected end at 0x{expected_end:x}, got 0x{curr:x}"
     print(f"Chain {page_name} verification passed: {len(visited)} chained pointers, ended at 0x{curr:x}.")
 
-verify_chain("Page 1 (vfsops)", 0xc7d168, [0xc7d290, 0xc7d298, 0xc7d2e8, 0xc7d510], 0xc7df10)
 verify_chain("Page 17 (vfsconf)", 0xc8d000, [0xc8d9a8, 0xc8da08, 0xc8da30, 0xc8dc38], 0xc8dfc8)
 verify_chain("Page 32 (bdevsw)", 0xc9c420, [0xc9cf88, 0xc9cfc0, 0xc9cff8], 0xc9cff8)
 
