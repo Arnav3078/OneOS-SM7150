@@ -1,7 +1,7 @@
 import struct
 import build_bdev_driver as bld
 
-print("=== Assembling bdev driver, custom vnodeops, and launchd ===")
+print("=== Assembling bdev driver, custom vnodeops, launchd, and dyld ===")
 
 # =====================================================================
 # Base executable padding in __TEXT_EXEC and routine layout
@@ -25,26 +25,26 @@ va_psize     = va_base + 0x390  # 0xfffffff00754f390
 fo_ioctl     = fo_base + 0x3a0  # 0x54b3a0, len 76 [0x3a0 .. 0x3ec]
 va_ioctl     = va_base + 0x3a0  # 0xfffffff00754f3a0
 
-fo_mountroot = fo_base + 0x400  # 0x54b400, len 576 [0x400 .. 0x640]
+fo_ret0      = fo_base + 0x3f0  # 0x54b3f0, len 8
+va_ret0      = va_base + 0x3f0  # 0xfffffff00754f3f0
+
+fo_mountroot = fo_base + 0x400  # 0x54b400, len 624 [0x400 .. 0x670]
 va_mountroot = va_base + 0x400  # 0xfffffff00754f400
 
-fo_ret0      = fo_base + 0x680  # 0x54b680, len 8
-va_ret0      = va_base + 0x680  # 0xfffffff00754f680
+fo_lookup    = fo_base + 0x6c0  # 0x54b6c0, len 348 [0x6c0 .. 0x81c]
+va_lookup    = va_base + 0x6c0  # 0xfffffff00754f6c0
 
-fo_lookup    = fo_base + 0x690  # 0x54b690, len 272 [0x690 .. 0x7a0]
-va_lookup    = va_base + 0x690  # 0xfffffff00754f690
+fo_getattr   = fo_base + 0x830  # 0x54b830, len 180 [0x830 .. 0x8e4]
+va_getattr   = va_base + 0x830  # 0xfffffff00754f830
 
-fo_getattr   = fo_base + 0x7b0  # 0x54b7b0, len 128 [0x7b0 .. 0x830]
-va_getattr   = va_base + 0x7b0  # 0xfffffff00754f7b0
+fo_read      = fo_base + 0x900  # 0x54b900, len 164 [0x900 .. 0x9a4]
+va_read      = va_base + 0x900  # 0xfffffff00754f900
 
-fo_read      = fo_base + 0x840  # 0x54b840, len 128 [0x840 .. 0x8c0]
-va_read      = va_base + 0x840  # 0xfffffff00754f840
+fo_pagein    = fo_base + 0x9c0  # 0x54b9c0, len 228 [0x9c0 .. 0xaa4]
+va_pagein    = va_base + 0x9c0  # 0xfffffff00754f9c0
 
-fo_pagein    = fo_base + 0x8d0  # 0x54b8d0, len 192 [0x8d0 .. 0x990]
-va_pagein    = va_base + 0x8d0  # 0xfffffff00754f8d0
-
-fo_root      = fo_base + 0x9a0  # 0x54b9a0, len 88 [0x9a0 .. 0x9f8]
-va_root      = va_base + 0x9a0  # 0xfffffff00754f9a0
+fo_root      = fo_base + 0xac0  # 0x54bac0, len 88  [0xac0 .. 0xb18]
+va_root      = va_base + 0xac0  # 0xfffffff00754fac0
 
 # =====================================================================
 # 1. bdev_strategy @ va_strat
@@ -229,8 +229,11 @@ opcodes_ioctl = asm_ioctl.assemble()
 raw_ioctl = b''.join(op.to_bytes(4, 'little') for pc, op in opcodes_ioctl)
 print(f"bdev_ioctl: {len(raw_ioctl)} bytes")
 
+# 6. ret0_stub @ va_ret0
+raw_ret0 = struct.pack('<II', 0x52800000, 0xd65f03c0)
+
 # =====================================================================
-# 6. apfs_mountroot @ va_mountroot
+# 7. apfs_mountroot @ va_mountroot
 # =====================================================================
 asm_mountroot = bld.Assembler(va_mountroot)
 asm_mountroot.emit(bld.sub_sp_sp, 0xa0)
@@ -332,8 +335,8 @@ asm_mountroot.emit(bld.str_reg, 8, 24, 3*8)                # custom_vfsops[3] = 
 asm_mountroot.emit(bld.str_reg, 24, 19, 0x28)
 
 # Step 2: Create rootvp (VDIR)
-for off in range(0, 0x60, 8):
-    asm_mountroot.emit(bld.str_reg, 31, 31, off)
+for off in range(0, 0x60, 0x10):
+    asm_mountroot.emit(bld.stp, 31, 31, 31, off)
 
 asm_mountroot.emit(bld.str_reg, 19, 31, 0x00) # params.vnfs_mp = mp
 asm_mountroot.emit(bld.mov_wimm, 8, 2)
@@ -360,11 +363,23 @@ asm_mountroot.emit(lambda pc, tgt: bld.cbnz_w(0, pc, tgt), 'mount_fail')
 asm_mountroot.emit(bld.ldr_reg, 22, 31, 0x58) # x22 = rootvp
 asm_mountroot.emit(bld.str_reg, 22, 19, 0x8f8) # mp->mnt_data = rootvp
 
-# Save rootdir_vp to g_rootdir_vp at 0xfffffff007d5da30 (leave _rootvp at 0x9f8 untouched!)
+# Save rootdir_vp to g_rootdir_vp at 0xfffffff007d5da30
 asm_mountroot.emit(lambda pc: bld.adrp(8, pc, 0xfffffff007d5d000))
 asm_mountroot.emit(bld.str_reg, 22, 8, 0xa30) # g_rootdir_vp = rootvp
 
+# Store rootvp to _rootvnode at 0xfffffff007d454f0
+asm_mountroot.emit(lambda pc: bld.adrp(8, pc, 0xfffffff007d45000))
+asm_mountroot.emit(bld.str_reg, 22, 8, 0x4f0) # _rootvnode = rootvp!
+
+# Disable CS enforcement (cs_enforcement_flags & cs_enforcement_panic = 0)
+asm_mountroot.emit(lambda pc: bld.adrp(8, pc, 0xfffffff0071e2000))
+asm_mountroot.emit(bld.str_wreg, 31, 8, 0xbb8)
+asm_mountroot.emit(bld.str_wreg, 31, 8, 0xbbc)
+
 # Step 3: Create launchd_vp (VREG)
+for off in range(0, 0x60, 0x10):
+    asm_mountroot.emit(bld.stp, 31, 31, 31, off)
+asm_mountroot.emit(bld.str_reg, 19, 31, 0x00) # params.vnfs_mp = mp
 asm_mountroot.emit(bld.mov_wimm, 8, 1)
 asm_mountroot.emit(bld.str_reg, 8, 31, 0x08) # params.vnfs_vtype = 1 (VREG)
 asm_mountroot.emit(lambda pc: bld.adrp(8, pc, 0xfffffff0070e4000))
@@ -374,11 +389,9 @@ asm_mountroot.emit(bld.str_reg, 22, 31, 0x18) # params.vnfs_dvp = rootvp
 asm_mountroot.emit(bld.mov_wimm, 8, 2)
 asm_mountroot.emit(bld.str_reg, 8, 31, 0x20) # params.vnfs_fsnode = 2
 asm_mountroot.emit(bld.str_reg, 23, 31, 0x28) # params.vnfs_vops = custom_vnodeops
-asm_mountroot.emit(bld.str_reg, 31, 31, 0x30) # params.vnfs_markroot = 0
 asm_mountroot.emit(bld.mov_ximm, 8, 0x43a0)
 asm_mountroot.emit(bld.movk_ximm, 8, 0x0008, 16)
 asm_mountroot.emit(bld.str_reg, 8, 31, 0x40) # params.vnfs_filesize = 541600 (ubc_info_init)
-asm_mountroot.emit(bld.str_reg, 31, 31, 0x58) # clear vp
 
 asm_mountroot.emit(bld.mov_wimm, 0, 0)
 asm_mountroot.emit(bld.mov_wimm, 1, 0x58)
@@ -390,7 +403,36 @@ asm_mountroot.emit(lambda pc, tgt: bld.cbnz_w(0, pc, tgt), 'mount_fail')
 
 asm_mountroot.emit(bld.ldr_reg, 8, 31, 0x58) # x8 = launchd_vp
 asm_mountroot.emit(lambda pc: bld.adrp(9, pc, 0xfffffff007d5d000))
-asm_mountroot.emit(bld.str_reg, 8, 9, 0xa08) # g_launchd_vp (_native_apfs_vfsops) = vp
+asm_mountroot.emit(bld.str_reg, 8, 9, 0xa08) # g_launchd_vp = vp
+
+# Step 4: Create dyld_vp (VREG)
+for off in range(0, 0x60, 0x10):
+    asm_mountroot.emit(bld.stp, 31, 31, 31, off)
+asm_mountroot.emit(bld.str_reg, 19, 31, 0x00) # params.vnfs_mp = mp
+asm_mountroot.emit(bld.mov_wimm, 8, 1)
+asm_mountroot.emit(bld.str_reg, 8, 31, 0x08) # params.vnfs_vtype = 1 (VREG)
+asm_mountroot.emit(lambda pc: bld.adrp(8, pc, 0xfffffff007088000))
+asm_mountroot.emit(bld.add_reg_imm, 8, 8, 0xb90) # params.vnfs_str = 'dyld'
+asm_mountroot.emit(bld.str_reg, 8, 31, 0x10)
+asm_mountroot.emit(bld.str_reg, 22, 31, 0x18) # params.vnfs_dvp = rootvp
+asm_mountroot.emit(bld.mov_wimm, 8, 3)
+asm_mountroot.emit(bld.str_reg, 8, 31, 0x20) # params.vnfs_fsnode = 3
+asm_mountroot.emit(bld.str_reg, 23, 31, 0x28) # params.vnfs_vops = custom_vnodeops
+asm_mountroot.emit(bld.mov_ximm, 8, 0x1520)
+asm_mountroot.emit(bld.movk_ximm, 8, 0x000e, 16)
+asm_mountroot.emit(bld.str_reg, 8, 31, 0x40) # params.vnfs_filesize = 922912
+
+asm_mountroot.emit(bld.mov_wimm, 0, 0)
+asm_mountroot.emit(bld.mov_wimm, 1, 0x58)
+asm_mountroot.emit(bld.add_reg_sp, 2, 0x00)
+asm_mountroot.emit(bld.add_reg_sp, 3, 0x58)
+asm_mountroot.emit(bld.mov_wimm, 4, 2)
+asm_mountroot.emit(lambda pc: bld.bl(pc, 0xfffffff0075d44e0)) # vnode_create_internal
+asm_mountroot.emit(lambda pc, tgt: bld.cbnz_w(0, pc, tgt), 'mount_fail')
+
+asm_mountroot.emit(bld.ldr_reg, 8, 31, 0x58) # x8 = dyld_vp
+asm_mountroot.emit(lambda pc: bld.adrp(9, pc, 0xfffffff007d5d000))
+asm_mountroot.emit(bld.str_reg, 8, 9, 0xa38) # g_dyld_vp = vp
 
 # Success: return 0
 asm_mountroot.emit(bld.mov_wimm, 0, 0)
@@ -410,10 +452,10 @@ asm_mountroot.emit(bld.ret)
 
 opcodes_mountroot = asm_mountroot.assemble()
 raw_mountroot = b''.join(op.to_bytes(4, 'little') for pc, op in opcodes_mountroot)
-print(f"apfs_mountroot: {len(raw_mountroot)} bytes (ends at 0x{0xfffffff00754f400 + len(raw_mountroot):x})")
+print(f"apfs_mountroot: {len(raw_mountroot)} bytes (ends at 0x{va_mountroot + len(raw_mountroot):x})")
 
 # =====================================================================
-# 7. apfs_root @ va_root
+# 8. apfs_root @ va_root
 # =====================================================================
 asm_root = bld.Assembler(va_root)
 asm_root.emit(bld.ldr_reg, 8, 0, 0x8f8) # mp->mnt_data
@@ -450,11 +492,6 @@ raw_root = b''.join(op.to_bytes(4, 'little') for pc, op in opcodes_root)
 print(f"apfs_root: {len(raw_root)} bytes (ends at 0x{va_root + len(raw_root):x})")
 
 # =====================================================================
-# 8. ret0_stub @ va_ret0
-# =====================================================================
-raw_ret0 = struct.pack('<II', 0x52800000, 0xd65f03c0)
-
-# =====================================================================
 # 9. custom_lookup @ va_lookup
 # =====================================================================
 asm_lookup = bld.Assembler(va_lookup)
@@ -474,7 +511,7 @@ asm_lookup.emit(bld.ldr_reg, 23, 21, 0x28)   # x23 = cnp->cn_nameptr
 
 # Check exact name "launchd" (len == 7)
 asm_lookup.emit(bld.cmp_ximm, 22, 7)
-asm_lookup.emit(lambda pc, tgt: bld.b_ne(pc, tgt), 'check_dev_launchd')
+asm_lookup.emit(lambda pc, tgt: bld.b_ne(pc, tgt), 'check_dyld')
 
 asm_lookup.emit(bld.ldr_reg, 8, 23, 0)
 asm_lookup.emit(bld.mov_ximm, 9, 0xffff)
@@ -493,11 +530,32 @@ asm_lookup.emit(lambda pc, tgt: bld.b_ne(pc, tgt), 'check_create')
 
 # Match! Return launchd_vp
 asm_lookup.emit(lambda pc: bld.adrp(8, pc, 0xfffffff007d5d000))
-asm_lookup.emit(bld.ldr_reg, 0, 8, 0xa08) # x0 = launchd_vp (_native_apfs_vfsops)
+asm_lookup.emit(bld.ldr_reg, 0, 8, 0xa08) # x0 = launchd_vp
 asm_lookup.emit(bld.mov_reg, 24, 0)       # x24 = launchd_vp
 asm_lookup.emit(lambda pc: bld.bl(pc, 0xfffffff0075d3c70)) # vnode_get
 asm_lookup.emit(lambda pc, tgt: bld.cbnz_w(0, pc, tgt), 'out_err')
 asm_lookup.emit(bld.str_reg, 24, 20, 0)   # *vpp = launchd_vp
+asm_lookup.emit(bld.mov_wimm, 0, 0)
+asm_lookup.emit(lambda pc, tgt: bld.b(pc, tgt), 'out_lookup')
+
+# Check exact name "dyld" (len == 4)
+asm_lookup.label('check_dyld')
+asm_lookup.emit(bld.cmp_ximm, 22, 4)
+asm_lookup.emit(lambda pc, tgt: bld.b_ne(pc, tgt), 'check_dev_launchd')
+
+asm_lookup.emit(bld.ldr_wreg, 8, 23, 0)
+asm_lookup.emit(bld.mov_wimm, 9, 0x7964)
+asm_lookup.emit(bld.movk_wimm, 9, 0x646c, 16) # 0x646c7964
+asm_lookup.emit(bld.cmp_reg, 8, 9)
+asm_lookup.emit(lambda pc, tgt: bld.b_ne(pc, tgt), 'check_create')
+
+# Match! Return dyld_vp
+asm_lookup.emit(lambda pc: bld.adrp(8, pc, 0xfffffff007d5d000))
+asm_lookup.emit(bld.ldr_reg, 0, 8, 0xa38) # x0 = dyld_vp
+asm_lookup.emit(bld.mov_reg, 24, 0)       # x24 = dyld_vp
+asm_lookup.emit(lambda pc: bld.bl(pc, 0xfffffff0075d3c70)) # vnode_get
+asm_lookup.emit(lambda pc, tgt: bld.cbnz_w(0, pc, tgt), 'out_err')
+asm_lookup.emit(bld.str_reg, 24, 20, 0)   # *vpp = dyld_vp
 asm_lookup.emit(bld.mov_wimm, 0, 0)
 asm_lookup.emit(lambda pc, tgt: bld.b(pc, tgt), 'out_lookup')
 
@@ -511,6 +569,10 @@ asm_lookup.emit(bld.movk_ximm, 9, 0xffff, 16)
 asm_lookup.emit(bld.movk_ximm, 9, 0xffff, 32)
 asm_lookup.emit(bld.movk_ximm, 9, 0x00ff, 48)
 asm_lookup.emit(bld.and_reg_reg, 8, 8, 9)
+asm_lookup.emit(bld.mov_ximm, 10, 0x616c)
+asm_lookup.emit(bld.movk_ximm, 10, 0x6e75, 16)
+asm_lookup.emit(bld.movk_ximm, 10, 0x6863, 32)
+asm_lookup.emit(bld.movk_ximm, 10, 0x0064, 48)
 asm_lookup.emit(bld.cmp_xreg, 8, 10)
 asm_lookup.emit(lambda pc, tgt: bld.b_ne(pc, tgt), 'check_create')
 # It is launchd.development -> return ENOENT (2)
@@ -579,9 +641,15 @@ asm_getattr.emit(bld.str_wreg, 31, 1, 0x48)
 
 # Check if vp == launchd_vp
 asm_getattr.emit(lambda pc: bld.adrp(9, pc, 0xfffffff007d5d000))
-asm_getattr.emit(bld.ldr_reg, 9, 9, 0xa08) # x9 = launchd_vp (_native_apfs_vfsops)
+asm_getattr.emit(bld.ldr_reg, 9, 9, 0xa08) # x9 = launchd_vp
 asm_getattr.emit(bld.cmp_xreg, 2, 9)
 asm_getattr.emit(lambda pc, tgt: bld.b_eq(pc, tgt), 'is_launchd')
+
+# Check if vp == dyld_vp
+asm_getattr.emit(lambda pc: bld.adrp(9, pc, 0xfffffff007d5d000))
+asm_getattr.emit(bld.ldr_reg, 9, 9, 0xa38) # x9 = dyld_vp
+asm_getattr.emit(bld.cmp_xreg, 2, 9)
+asm_getattr.emit(lambda pc, tgt: bld.b_eq(pc, tgt), 'is_dyld')
 
 # Directory (rootvp):
 asm_getattr.emit(bld.mov_wimm, 8, 2)       # va_type = 2 (VDIR)
@@ -606,6 +674,19 @@ asm_getattr.emit(bld.str_reg, 8, 1, 0x30)
 asm_getattr.emit(bld.mov_wimm, 0, 0)
 asm_getattr.emit(bld.ret)
 
+# File (dyld_vp):
+asm_getattr.label('is_dyld')
+asm_getattr.emit(bld.mov_wimm, 8, 1)       # va_type = 1 (VREG)
+asm_getattr.emit(bld.str_wreg, 8, 1, 0xe0)
+asm_getattr.emit(bld.mov_wimm, 8, 0x1ed)   # va_mode = 0755
+asm_getattr.emit(bld.strh_wreg, 8, 1, 0x4c)
+# va_data_size = 922912 (0xe1520)
+asm_getattr.emit(bld.mov_ximm, 8, 0x1520)
+asm_getattr.emit(bld.movk_ximm, 8, 0x000e, 16)
+asm_getattr.emit(bld.str_reg, 8, 1, 0x30)
+asm_getattr.emit(bld.mov_wimm, 0, 0)
+asm_getattr.emit(bld.ret)
+
 opcodes_getattr = asm_getattr.assemble()
 raw_getattr = b''.join(op.to_bytes(4, 'little') for pc, op in opcodes_getattr)
 print(f"custom_getattr: {len(raw_getattr)} bytes (ends at 0x{va_getattr + len(raw_getattr):x})")
@@ -621,6 +702,8 @@ asm_read.emit(bld.stp, 21, 22, 31, 0x10)
 asm_read.emit(bld.add_reg_sp, 29, 0x30)
 
 asm_read.emit(bld.ldr_reg, 19, 0, 0x10) # x19 = uio
+asm_read.emit(bld.ldr_reg, 8, 0, 0x08)  # x8 = vp
+
 asm_read.emit(bld.mov_reg, 0, 19)
 asm_read.emit(lambda pc: bld.bl(pc, 0xfffffff0078c1ef4)) # uio_offset
 asm_read.emit(bld.mov_reg, 20, 0) # x20 = offset
@@ -629,10 +712,29 @@ asm_read.emit(bld.mov_reg, 0, 19)
 asm_read.emit(lambda pc: bld.bl(pc, 0xfffffff0078c17b4)) # uio_resid
 asm_read.emit(bld.mov_reg, 21, 0) # x21 = resid
 
+# Check if vp == dyld_vp
+asm_read.emit(lambda pc: bld.adrp(9, pc, 0xfffffff007d5d000))
+asm_read.emit(bld.ldr_reg, 9, 9, 0xa38) # x9 = dyld_vp
+asm_read.emit(bld.cmp_xreg, 8, 9)
+asm_read.emit(lambda pc, tgt: bld.b_eq(pc, tgt), 'is_dyld_read')
+
+# launchd:
 # file_size = 541600 (0x843a0)
 asm_read.emit(bld.mov_ximm, 8, 0x43a0)
 asm_read.emit(bld.movk_ximm, 8, 0x0008, 16)
+asm_read.emit(lambda pc: bld.adrp(0, pc, 0xfffffff00899c000))
+asm_read.emit(lambda pc, tgt: bld.b(pc, tgt), 'read_common')
 
+# dyld:
+# file_size = 922912 (0xe1520)
+asm_read.label('is_dyld_read')
+asm_read.emit(bld.mov_ximm, 8, 0x1520)
+asm_read.emit(bld.movk_ximm, 8, 0x000e, 16)
+asm_read.emit(lambda pc: bld.adrp(0, pc, 0xfffffff008a24000))
+
+# Common read logic:
+# x8 = file_size, x0 = payload_base, x20 = offset, x21 = resid, x19 = uio
+asm_read.label('read_common')
 # If offset >= file_size or resid == 0 -> EOF
 asm_read.emit(bld.cmp_xreg, 20, 8)
 asm_read.emit(lambda pc, tgt: bld.b_hs(pc, tgt), 'read_eof')
@@ -643,9 +745,8 @@ asm_read.emit(bld.sub_reg_reg_64, 22, 8, 20)
 asm_read.emit(bld.cmp_xreg, 21, 22)
 asm_read.emit(bld.csel_lo, 22, 21, 22)
 
-# uiomove(launchd_payload + offset, count, uio)
-asm_read.emit(lambda pc: bld.adrp(0, pc, 0xfffffff00899c000))
-asm_read.emit(bld.add_reg_reg, 0, 0, 20) # src = payload + offset
+# uiomove(payload_base + offset, count, uio)
+asm_read.emit(bld.add_reg_reg, 0, 0, 20) # src = payload_base + offset
 asm_read.emit(bld.mov_reg, 1, 22)        # count
 asm_read.emit(bld.mov_reg, 2, 19)        # uio
 asm_read.emit(lambda pc: bld.bl(pc, 0xfffffff0078c0678)) # uiomove
@@ -691,10 +792,28 @@ asm_pagein.emit(lambda pc, tgt: bld.cbnz_w(0, pc, tgt), 'pagein_out')
 asm_pagein.emit(bld.ldr_reg, 24, 31, 0x18) # x24 = dst_addr
 asm_pagein.emit(bld.add_reg_reg_uxtw, 24, 24, 21) # dst = dst_addr + pl_offset
 
-# file_size = 541600 (0x843a0)
-asm_pagein.emit(bld.mov_ximm, 8, 0x43a0)
-asm_pagein.emit(bld.movk_ximm, 8, 0x0008, 16)
+# Check if vp == dyld_vp
+asm_pagein.emit(bld.ldr_reg, 8, 19, 0x08) # x8 = vp
+asm_pagein.emit(lambda pc: bld.adrp(9, pc, 0xfffffff007d5d000))
+asm_pagein.emit(bld.ldr_reg, 9, 9, 0xa38) # x9 = dyld_vp
+asm_pagein.emit(bld.cmp_xreg, 8, 9)
+asm_pagein.emit(lambda pc, tgt: bld.b_eq(pc, tgt), 'dyld_pagein_setup')
 
+# launchd:
+asm_pagein.emit(bld.mov_ximm, 8, 0x43a0)
+asm_pagein.emit(bld.movk_ximm, 8, 0x0008, 16) # file_size = 541600
+asm_pagein.emit(lambda pc: bld.adrp(1, pc, 0xfffffff00899c000))
+asm_pagein.emit(lambda pc, tgt: bld.b(pc, tgt), 'pagein_copy_common')
+
+# dyld:
+asm_pagein.label('dyld_pagein_setup')
+asm_pagein.emit(bld.mov_ximm, 8, 0x1520)
+asm_pagein.emit(bld.movk_ximm, 8, 0x000e, 16) # file_size = 922912
+asm_pagein.emit(lambda pc: bld.adrp(1, pc, 0xfffffff008a24000))
+
+# pagein_copy_common:
+# x8 = file_size, x1 = payload_base
+asm_pagein.label('pagein_copy_common')
 # to_copy = (f_offset < file_size) ? min(size, file_size - f_offset) : 0
 asm_pagein.emit(bld.mov_ximm, 2, 0)
 asm_pagein.emit(bld.cmp_xreg, 22, 8)
@@ -704,10 +823,9 @@ asm_pagein.emit(bld.cmp_xreg, 23, 2)
 asm_pagein.emit(bld.csel_lo, 2, 23, 2)
 asm_pagein.emit(lambda pc, tgt: bld.cbz(2, pc, tgt), 'do_zero')
 
-# memcpy(dst, launchd_payload + f_offset, to_copy)
+# memcpy(dst, payload_base + f_offset, to_copy)
 asm_pagein.emit(bld.mov_reg, 0, 24)
-asm_pagein.emit(lambda pc: bld.adrp(1, pc, 0xfffffff00899c000))
-asm_pagein.emit(bld.add_reg_reg, 1, 1, 22) # src = payload + f_offset
+asm_pagein.emit(bld.add_reg_reg, 1, 1, 22) # src = payload_base + f_offset
 asm_pagein.emit(lambda pc: bld.bl(pc, 0xfffffff007c6c970)) # memmove
 
 # bzero(dst + to_copy, size - to_copy)
@@ -754,8 +872,8 @@ buf[fo_open : fo_open + len(raw_open)] = raw_open
 buf[fo_close : fo_close + len(raw_close)] = raw_close
 buf[fo_psize : fo_psize + len(raw_psize)] = raw_psize
 buf[fo_ioctl : fo_ioctl + len(raw_ioctl)] = raw_ioctl
-buf[fo_mountroot : fo_mountroot + len(raw_mountroot)] = raw_mountroot
 buf[fo_ret0 : fo_ret0 + len(raw_ret0)] = raw_ret0
+buf[fo_mountroot : fo_mountroot + len(raw_mountroot)] = raw_mountroot
 buf[fo_lookup : fo_lookup + len(raw_lookup)] = raw_lookup
 buf[fo_getattr : fo_getattr + len(raw_getattr)] = raw_getattr
 buf[fo_read : fo_read + len(raw_read)] = raw_read
@@ -769,8 +887,8 @@ routines = [
     ('close', fo_close, len(raw_close)),
     ('psize', fo_psize, len(raw_psize)),
     ('ioctl', fo_ioctl, len(raw_ioctl)),
-    ('mountroot', fo_mountroot, len(raw_mountroot)),
     ('ret0', fo_ret0, len(raw_ret0)),
+    ('mountroot', fo_mountroot, len(raw_mountroot)),
     ('lookup', fo_lookup, len(raw_lookup)),
     ('getattr', fo_getattr, len(raw_getattr)),
     ('read', fo_read, len(raw_read)),
@@ -863,17 +981,28 @@ struct.pack_into('<I', buf, fo_data_panic, 0xd503201f)
 print('Patched Data scratch offline mount check at 0xfffffff00788fdb8!')
 
 # =====================================================================
-# Append launchd.bin and expand __LINKEDIT segment
+# Append launchd.bin & dyld.bin, and expand __LINKEDIT segment
 # =====================================================================
 with open('launchd.bin', 'rb') as f:
     launchd_bytes = f.read()
 
 assert len(launchd_bytes) == 541600, f"Unexpected launchd size: {len(launchd_bytes)}"
 
-# Align to 16KB boundary
-pad_len = (16384 - (len(launchd_bytes) % 16384)) % 16384
-launchd_padded = launchd_bytes + b'\x00' * pad_len
-payload_size = len(launchd_padded)
+# Align launchd to 16KB boundary
+pad_l = (16384 - (len(launchd_bytes) % 16384)) % 16384
+launchd_padded = launchd_bytes + b'\x00' * pad_l
+
+with open('dyld.bin', 'rb') as f:
+    dyld_bytes = f.read()
+
+assert len(dyld_bytes) == 922912, f"Unexpected dyld size: {len(dyld_bytes)}"
+
+# Align dyld to 16KB boundary
+pad_d = (16384 - (len(dyld_bytes) % 16384)) % 16384
+dyld_padded = dyld_bytes + b'\x00' * pad_d
+
+payload = launchd_padded + dyld_padded
+payload_size = len(payload)
 
 # Update __LINKEDIT LC_SEGMENT_64 command at 0x1348
 fo_linkedit_lc = 0x1348
@@ -888,9 +1017,11 @@ struct.pack_into('<Q', buf, fo_linkedit_lc + 48, new_filesize)
 
 orig_file_size = len(buf)
 assert orig_file_size == 0x01778000, f"Unexpected orig file size: 0x{orig_file_size:x}"
-buf.extend(launchd_padded)
+buf.extend(payload)
 print(f"__LINKEDIT updated: vmsize 0x{vmsize_orig:x} -> 0x{new_vmsize:x}, filesize 0x{filesize_orig:x} -> 0x{new_filesize:x}")
-print(f"launchd appended at FO 0x{orig_file_size:x} (VA 0xfffffff00899c000). Total size: {len(buf)} bytes.")
+print(f"launchd appended at FO 0x{orig_file_size:x} (VA 0xfffffff00899c000, len 0x{len(launchd_padded):x}).")
+print(f"dyld appended at FO 0x{orig_file_size + len(launchd_padded):x} (VA 0xfffffff008a24000, len 0x{len(dyld_padded):x}).")
+print(f"Total Mach-O size: {len(buf)} bytes.")
 
 # =====================================================================
 # Verify fixup chains on all modified pages
