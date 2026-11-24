@@ -360,9 +360,9 @@ asm_mountroot.emit(lambda pc, tgt: bld.cbnz_w(0, pc, tgt), 'mount_fail')
 asm_mountroot.emit(bld.ldr_reg, 22, 31, 0x58) # x22 = rootvp
 asm_mountroot.emit(bld.str_reg, 22, 19, 0x8f8) # mp->mnt_data = rootvp
 
-# Save rootvp to _rootvp at 0xfffffff007d5d9f8
+# Save rootdir_vp to g_rootdir_vp at 0xfffffff007d5da30 (leave _rootvp at 0x9f8 untouched!)
 asm_mountroot.emit(lambda pc: bld.adrp(8, pc, 0xfffffff007d5d000))
-asm_mountroot.emit(bld.str_reg, 22, 8, 0x9f8) # _rootvp = rootvp
+asm_mountroot.emit(bld.str_reg, 22, 8, 0xa30) # g_rootdir_vp = rootvp
 
 # Step 3: Create launchd_vp (VREG)
 asm_mountroot.emit(bld.mov_wimm, 8, 1)
@@ -419,7 +419,7 @@ asm_root = bld.Assembler(va_root)
 asm_root.emit(bld.ldr_reg, 8, 0, 0x8f8) # mp->mnt_data
 asm_root.emit(lambda pc, tgt: bld.cbnz(8, pc, tgt), 'has_vp')
 asm_root.emit(lambda pc: bld.adrp(9, pc, 0xfffffff007d5d000))
-asm_root.emit(bld.ldr_reg, 8, 9, 0x9f8) # _rootvp
+asm_root.emit(bld.ldr_reg, 8, 9, 0xa30) # g_rootdir_vp
 
 asm_root.label('has_vp')
 asm_root.emit(lambda pc, tgt: bld.cbz(8, pc, tgt), 'no_vp')
@@ -527,7 +527,7 @@ asm_lookup.emit(lambda pc, tgt: bld.tbnz(8, 15, pc, tgt), 'return_null') # ISLAS
 
 asm_lookup.label('return_rootvp')
 asm_lookup.emit(lambda pc: bld.adrp(8, pc, 0xfffffff007d5d000))
-asm_lookup.emit(bld.ldr_reg, 0, 8, 0x9f8) # x0 = rootvp (_rootvp)
+asm_lookup.emit(bld.ldr_reg, 0, 8, 0xa30) # x0 = rootvp (g_rootdir_vp)
 asm_lookup.emit(bld.mov_reg, 24, 0)       # x24 = rootvp
 asm_lookup.emit(lambda pc: bld.bl(pc, 0xfffffff0075d3c70)) # vnode_get
 asm_lookup.emit(lambda pc, tgt: bld.cbnz_w(0, pc, tgt), 'out_err')
