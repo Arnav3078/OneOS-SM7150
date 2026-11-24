@@ -1,11 +1,12 @@
 import subprocess
 import os
 
-print("=== Step 1: Pushing xnu_arm64_fixed.macho to device ===")
-subprocess.check_call(["adb", "push", "xnu_arm64_fixed.macho", "/sdcard/kernel.kc"])
+print("=== Step 1: Pushing xnu_arm64_bdev_final.macho to device ===")
+subprocess.check_call(["adb", "push", "xnu_arm64_bdev_final.macho", "/sdcard/kernel.kc"])
 subprocess.check_call(["adb", "shell", "su 0 cp /sdcard/kernel.kc /data/local/tmp/oneios/image/kernel.kc"])
-subprocess.check_call(["adb", "shell", "su 0 chmod 644 /data/local/tmp/oneios/image/kernel.kc"])
-print("Pushed and copied to /data/local/tmp/oneios/image/kernel.kc")
+subprocess.check_call(["adb", "shell", "su 0 cp /sdcard/kernel.kc /data/local/tmp/test_kernel.kc"])
+subprocess.check_call(["adb", "shell", "su 0 chmod 644 /data/local/tmp/oneios/image/kernel.kc /data/local/tmp/test_kernel.kc"])
+print("Pushed and copied to /data/local/tmp/oneios/image/kernel.kc and /data/local/tmp/test_kernel.kc")
 
 print("\n=== Step 2: Updating kernel hashes and manifest ===")
 subprocess.check_call(["python", "update_kc_meta.py"])

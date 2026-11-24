@@ -15,6 +15,8 @@ def lsr_reg_imm(xd, xn, shift): return 0xd340fc00 | ((shift & 0x3f) << 16) | (xn
 def stp(rt1, rt2, rn, imm): return 0xa9000000 | (((imm >> 3) & 0x7f) << 15) | (rt2 << 10) | (rn << 5) | rt1
 def ldp(rt1, rt2, rn, imm): return 0xa9400000 | (((imm >> 3) & 0x7f) << 15) | (rt2 << 10) | (rn << 5) | rt1
 def str_reg(rt, rn, imm): return 0xf9000000 | (((imm >> 3) & 0x1ff) << 10) | (rn << 5) | rt
+def str_wreg(wt, rn, imm): return 0xb9000000 | (((imm >> 2) & 0x1ff) << 10) | (rn << 5) | wt
+def ldr_wreg(wt, rn, imm): return 0xb9400000 | (((imm >> 2) & 0x1ff) << 10) | (rn << 5) | wt
 def ldr_reg(rt, rn, imm): return 0xf9400000 | (((imm >> 3) & 0x1ff) << 10) | (rn << 5) | rt
 def ldr_reg_uxtw3(rt, rn, wm): return 0xf8605800 | (wm << 16) | (rn << 5) | rt
 def ldrb_reg(rt, rn, imm): return 0x39400000 | ((imm & 0xfff) << 10) | (rn << 5) | rt
@@ -29,6 +31,7 @@ def movk_ximm(xd, imm, lsl): return 0xf2800000 | ((lsl // 16) << 21) | ((imm & 0
 def cmp_reg(wn, wm): return 0x6b00001f | (wm << 16) | (wn << 5)
 def cmp_wimm(wn, imm): return 0x7100001f | ((imm & 0xfff) << 10) | (wn << 5)
 def csel_w_lo(wd, wn, wm): return 0x1a803000 | (wm << 16) | (wn << 5) | wd
+def csel_lo(xd, xn, xm): return 0x9a803000 | (xm << 16) | (xn << 5) | xd
 
 def ret(): return 0xd65f03c0
 def nop(): return 0xd503201f
@@ -67,6 +70,14 @@ def b_lo(pc, target):
 def cbz(xn, pc, target):
     offset = (target - pc) >> 2
     return 0xb4000000 | ((offset & 0x7ffff) << 5) | xn
+
+def cbz_w(wn, pc, target):
+    offset = (target - pc) >> 2
+    return 0x34000000 | ((offset & 0x7ffff) << 5) | wn
+
+def cbnz(xn, pc, target):
+    offset = (target - pc) >> 2
+    return 0xb5000000 | ((offset & 0x7ffff) << 5) | xn
 
 def cbnz_w(wn, pc, target):
     offset = (target - pc) >> 2
