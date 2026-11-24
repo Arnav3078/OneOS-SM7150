@@ -269,13 +269,10 @@ asm_mountroot.emit(bld.add_reg_imm, 1, 1, 8)
 asm_mountroot.emit(bld.subs_reg_imm, 2, 2, 1)
 asm_mountroot.emit(lambda pc, tgt: bld.b_ne(pc, tgt), 'copy_ops_loop')
 
-# Overwrite slots in custom_vnodeops with PAC-signed pointers (diversity 0x307a):
-asm_mountroot.emit(bld.mov_ximm, 17, 0x307a)
-
+# Overwrite slots in custom_vnodeops (plain slid pointers, no PAC on ARMv8.2-A / Kryo 470):
 # ret0_stub @ va_ret0
 asm_mountroot.emit(lambda pc: bld.adrp(8, pc, va_ret0 & ~0xfff))
 asm_mountroot.emit(bld.add_reg_imm, 8, 8, va_ret0 & 0xfff)
-asm_mountroot.emit(lambda pc: 0xdac10228) # pacia x8, x17!
 
 asm_mountroot.emit(bld.str_reg, 8, 10, 7*8)  # vnop_open
 asm_mountroot.emit(bld.str_reg, 8, 10, 9*8)  # vnop_close
@@ -289,25 +286,21 @@ asm_mountroot.emit(bld.str_reg, 8, 10, 33*8) # vnop_compound_mkdir
 # Slot 3 (vnop_lookup) = custom_lookup @ va_lookup
 asm_mountroot.emit(lambda pc: bld.adrp(9, pc, va_lookup & ~0xfff))
 asm_mountroot.emit(bld.add_reg_imm, 9, 9, va_lookup & 0xfff)
-asm_mountroot.emit(lambda pc: 0xdac10229) # pacia x9, x17!
 asm_mountroot.emit(bld.str_reg, 9, 10, 3*8)
 
 # Slot 11 (vnop_getattr) = custom_getattr @ va_getattr
 asm_mountroot.emit(lambda pc: bld.adrp(9, pc, va_getattr & ~0xfff))
 asm_mountroot.emit(bld.add_reg_imm, 9, 9, va_getattr & 0xfff)
-asm_mountroot.emit(lambda pc: 0xdac10229) # pacia x9, x17!
 asm_mountroot.emit(bld.str_reg, 9, 10, 11*8)
 
 # Slot 13 (vnop_read) = custom_read @ va_read
 asm_mountroot.emit(lambda pc: bld.adrp(9, pc, va_read & ~0xfff))
 asm_mountroot.emit(bld.add_reg_imm, 9, 9, va_read & 0xfff)
-asm_mountroot.emit(lambda pc: 0xdac10229) # pacia x9, x17!
 asm_mountroot.emit(bld.str_reg, 9, 10, 13*8)
 
 # Slot 46 (vnop_pagein) = custom_pagein @ va_pagein
 asm_mountroot.emit(lambda pc: bld.adrp(9, pc, va_pagein & ~0xfff))
 asm_mountroot.emit(bld.add_reg_imm, 9, 9, va_pagein & 0xfff)
-asm_mountroot.emit(lambda pc: 0xdac10229) # pacia x9, x17!
 asm_mountroot.emit(bld.str_reg, 9, 10, 46*8)
 
 # Step 1.5: Allocate custom_vfsops (96 bytes) and setup vfs_root
@@ -330,11 +323,9 @@ asm_mountroot.emit(bld.add_reg_imm, 1, 1, 8)
 asm_mountroot.emit(bld.subs_reg_imm, 2, 2, 1)
 asm_mountroot.emit(lambda pc, tgt: bld.b_ne(pc, tgt), 'copy_vfsops_loop')
 
-# Overwrite slot 3 (vfs_root) with PAC-signed apfs_root (diversity 0xbcad)
-asm_mountroot.emit(bld.mov_ximm, 17, 0xbcad)
+# Overwrite slot 3 (vfs_root) with apfs_root
 asm_mountroot.emit(lambda pc: bld.adrp(8, pc, va_root & ~0xfff))
 asm_mountroot.emit(bld.add_reg_imm, 8, 8, va_root & 0xfff) # apfs_root @ va_root
-asm_mountroot.emit(lambda pc: 0xdac10228)                   # pacia x8, x17!
 asm_mountroot.emit(bld.str_reg, 8, 24, 3*8)                # custom_vfsops[3] = apfs_root
 
 # Update mp->mnt_op = custom_vfsops
@@ -382,6 +373,7 @@ asm_mountroot.emit(bld.str_reg, 8, 31, 0x10)
 asm_mountroot.emit(bld.str_reg, 22, 31, 0x18) # params.vnfs_dvp = rootvp
 asm_mountroot.emit(bld.mov_wimm, 8, 2)
 asm_mountroot.emit(bld.str_reg, 8, 31, 0x20) # params.vnfs_fsnode = 2
+asm_mountroot.emit(bld.str_reg, 23, 31, 0x28) # params.vnfs_vops = custom_vnodeops
 asm_mountroot.emit(bld.str_reg, 31, 31, 0x30) # params.vnfs_markroot = 0
 asm_mountroot.emit(bld.mov_ximm, 8, 0x43a0)
 asm_mountroot.emit(bld.movk_ximm, 8, 0x0008, 16)
