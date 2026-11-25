@@ -73,9 +73,9 @@ asm_strat.emit(bld.mov_reg, 0, 19)
 asm_strat.emit(lambda pc: bld.bl(pc, 0xfffffff0075ad340)) # buf_count
 asm_strat.emit(bld.mov_reg, 22, 0) # x22 = count
 
-# Step B: Get disk object from gOneiOSHostedDisk
-asm_strat.emit(lambda pc: bld.adrp(8, pc, 0xfffffff007d5d000))
-asm_strat.emit(bld.ldr_reg, 10, 8, 0x9f0) # x10 = gOneiOSHostedDisk
+# Step B: Get disk object from OneiOSHostedDisk::disks[0]
+asm_strat.emit(lambda pc: bld.adrp(8, pc, 0xfffffff007d8b000))
+asm_strat.emit(bld.ldr_reg, 10, 8, 0x598) # x10 = OneiOSHostedDisk::disks[0]
 asm_strat.emit(lambda pc, tgt: bld.cbz(10, pc, tgt), 'err_nodev')
 
 # Step C: buf_map(bp, &vaddr)
@@ -85,8 +85,11 @@ asm_strat.emit(lambda pc: bld.bl(pc, 0xfffffff0075ae0c4)) # buf_map
 asm_strat.emit(lambda pc, tgt: bld.cbnz_w(0, pc, tgt), 'err_map')
 asm_strat.emit(bld.ldr_reg, 24, 31, 0x78) # x24 = vaddr
 
-# Step D: Bounce buffer at disk + 0x110
-asm_strat.emit(bld.add_reg_imm, 25, 10, 0x110) # x25 = bounce buffer
+# Step D: Bounce buffer from [disk + 0x98] -> [desc + 0xb8]
+asm_strat.emit(bld.ldr_reg, 25, 10, 0x98) # x25 = desc
+asm_strat.emit(lambda pc, tgt: bld.cbz(25, pc, tgt), 'err_nodev')
+asm_strat.emit(bld.ldr_reg, 25, 25, 0xb8) # x25 = bounce buffer vaddr
+asm_strat.emit(lambda pc, tgt: bld.cbz(25, pc, tgt), 'err_nodev')
 asm_strat.emit(bld.mov_wimm, 28, 0x1000) # max_chunk = 4096 (0x1000)
 asm_strat.emit(bld.mov_reg, 26, 31)     # transferred = 0
 
@@ -702,7 +705,7 @@ asm_read.emit(bld.stp, 21, 22, 31, 0x10)
 asm_read.emit(bld.add_reg_sp, 29, 0x30)
 
 asm_read.emit(bld.ldr_reg, 19, 0, 0x10) # x19 = uio
-asm_read.emit(bld.ldr_reg, 8, 0, 0x08)  # x8 = vp
+asm_read.emit(bld.ldr_reg, 22, 0, 0x08) # x22 = vp (callee-saved, preserved across bl)
 
 asm_read.emit(bld.mov_reg, 0, 19)
 asm_read.emit(lambda pc: bld.bl(pc, 0xfffffff0078c1ef4)) # uio_offset
@@ -715,7 +718,7 @@ asm_read.emit(bld.mov_reg, 21, 0) # x21 = resid
 # Check if vp == dyld_vp
 asm_read.emit(lambda pc: bld.adrp(9, pc, 0xfffffff007d5d000))
 asm_read.emit(bld.ldr_reg, 9, 9, 0xa38) # x9 = dyld_vp
-asm_read.emit(bld.cmp_xreg, 8, 9)
+asm_read.emit(bld.cmp_xreg, 22, 9)
 asm_read.emit(lambda pc, tgt: bld.b_eq(pc, tgt), 'is_dyld_read')
 
 # launchd:
